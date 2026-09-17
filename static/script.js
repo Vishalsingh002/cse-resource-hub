@@ -178,15 +178,26 @@ async function renderView() {
     return;
   }
 
+  // Subject is selected -> Show Header and Type Buttons (END, MFT, MID, etc.)
   subjectsGrid.classList.add("hidden");
   subjectHeader.classList.remove("hidden");
   typeFilter.classList.remove("hidden");
   el("subjectHeaderTitle").textContent = state.subject;
 
+  // Agar user ne abhi tak koi Type (END, MFT, MID, etc.) select nahi kiya hai:
+  if (!state.filters.type) {
+    state.papers = [];
+    el("papersGrid").innerHTML = "";
+    empty.classList.remove("hidden");
+    el("emptyTitle").textContent = "Select a category";
+    el("emptyText").textContent = "Click on END, MFT, MID, SYL, or TUTORIAL above to view resources.";
+    el("emptyActionBtn").classList.add("hidden");
+    return;
+  }
+
+  // Jab user Type button click karega, tab sirf usi type ke papers filter honge:
   state.papers = state.semesterPapers.filter((p) => {
-    if (p.subject !== state.subject) return false;
-    if (state.filters.type && p.type !== state.filters.type) return false;
-    return true;
+    return p.subject === state.subject && p.type === state.filters.type;
   });
   renderPapers();
 }
@@ -236,7 +247,7 @@ function renderSubjectsGrid() {
       `;
       card.addEventListener("click", () => {
         state.subject = s.subject;
-        state.filters.type = "";
+        state.filters.type = ""; // Shuru me type blank rahega
         updateTypePillActive();
         renderView();
       });
@@ -259,10 +270,10 @@ function renderPapers() {
       el("emptyText").textContent = "Try a different search term.";
       el("emptyActionBtn").classList.add("hidden");
     } else {
-      const label = state.subject ? `${state.subject} (Semester ${state.filters.semester})` : `Semester ${state.filters.semester}`;
-      el("emptyTitle").textContent = `Nothing here yet for ${label}`;
+      const typeLabel = TYPE_SHORT[state.filters.type] || state.types[state.filters.type] || state.filters.type;
+      el("emptyTitle").textContent = `No ${typeLabel} resources found`;
       el("emptyText").textContent = state.isAdmin
-        ? "Add the first paper here below."
+        ? `Add the first ${typeLabel} resource for ${state.subject} below.`
         : "Ask an admin to add resources here.";
       el("emptyActionBtn").classList.toggle("hidden", !state.isAdmin);
     }
@@ -278,7 +289,6 @@ function renderPapers() {
     card.className = "paper-card";
     card.style.setProperty("--card-accent", accent);
 
-    // Agar Cloudinary link hai toh direct open hoga, warna local path
     const fileUrl = p.filename.startsWith("http") ? p.filename : `/uploads/${encodeURIComponent(p.filename)}`;
 
     card.innerHTML = `

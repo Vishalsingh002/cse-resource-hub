@@ -1,0 +1,23 @@
+# Never commit these — this is what keeps your admin credentials
+# and uploaded files out of your public GitHub repo.
+
+# The database holds the hashed admin password + all paper metadata.
+# Keep it out of git so a fresh clone doesn't carry over your real data.
+database.db
+
+# Uploaded files shouldn't be tracked by git either.
+uploads/*
+!uploads/.gitkeep
+
+# Python runtime junk
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# If you ever use a .env file for local secrets, never commit it.
+.env
+
+# Editor/OS junk
+.vscode/
+.DS_Store

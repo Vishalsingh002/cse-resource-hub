@@ -42,8 +42,8 @@ if CLOUDINARY_CLOUD_NAME and CLOUDINARY_API_KEY:
         secure=True,
     )
 
-ADMIN_EMAIL_DEFAULT = os.environ.get("ADMIN_EMAIL", "admin@college.edu")
-ADMIN_PASSWORD_DEFAULT = os.environ.get("ADMIN_PASSWORD", "ChangeMe123!")
+ADMIN_EMAIL_DEFAULT = os.environ.get("ADMIN_EMAIL", "admin@college.edu").strip().lower()
+ADMIN_PASSWORD_DEFAULT = os.environ.get("ADMIN_PASSWORD", "ChangeMe123!").strip()
 
 MAX_LOGIN_ATTEMPTS = 5
 LOCKOUT_MINUTES = 10
@@ -68,13 +68,30 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 
 # ---------------------------------------------------------------------------
-# Turso / SQLite Compatibility Layer
+# Turso / SQLite Compatibility Layer (Row & Dict support)
 # ---------------------------------------------------------------------------
+
+class RowWrapper(dict):
+    """Supports both row['col'] and row[0] as well as dict(row)."""
+    def __init__(self, columns, values):
+        super().__init__(zip(columns, values))
+        self._values = tuple(values)
+
+    def __getitem__(self, item):
+        if isinstance(item, int):
+            return self._values[item]
+        return super().__getitem__(item)
+
 
 class TursoQueryResult:
     def __init__(self, res):
         self.res = res
-        self._rows = res.rows if res else []
+        self._rows = []
+        if res and hasattr(res, "columns") and hasattr(res, "rows"):
+            cols = list(res.columns)
+            for r in res.rows:
+                vals = list(r) if hasattr(r, "__iter__") else [r]
+                self._rows.append(RowWrapper(cols, vals))
 
     def fetchone(self):
         return self._rows[0] if self._rows else None
@@ -109,8 +126,9 @@ def get_db():
     if "db" not in g:
         if TURSO_DB_URL and TURSO_AUTH_TOKEN:
             import libsql_client
-            # URL format fix for libsql-client (libsql:// to https:// if needed)
             url = TURSO_DB_URL
+            if url.startswith("libsql://"):
+                url = url.replace("libsql://", "https://")
             client = libsql_client.create_client_sync(url=url, auth_token=TURSO_AUTH_TOKEN)
             g.db = TursoDBWrapper(client)
         else:
@@ -167,29 +185,34 @@ def init_db():
     for stmt in statements:
         try:
             db.execute(stmt)
-        except Exception:
-            pass
+        except Exception as e:
+            print("[setup] Table create notice:", e)
 
     try:
         db.execute("ALTER TABLE papers ADD COLUMN code TEXT")
     except Exception:
         pass
 
+    # Ensure admin user is ALWAYS synchronized with current env credentials
     try:
-        existing = db.execute("SELECT COUNT(*) AS c FROM admins").fetchone()
-        count = existing["c"] if existing else 0
-        if count == 0:
+        admin_row = db.execute("SELECT * FROM admins WHERE LOWER(email) = LOWER(?)", (ADMIN_EMAIL_DEFAULT,)).fetchone()
+        hashed = generate_password_hash(ADMIN_PASSWORD_DEFAULT)
+        now_time = datetime.now(timezone.utc).isoformat()
+        if not admin_row:
             db.execute(
                 "INSERT INTO admins (email, password_hash, created_at) VALUES (?, ?, ?)",
-                (
-                    ADMIN_EMAIL_DEFAULT,
-                    generate_password_hash(ADMIN_PASSWORD_DEFAULT),
-                    datetime.now(timezone.utc).isoformat(),
-                ),
+                (ADMIN_EMAIL_DEFAULT, hashed, now_time),
             )
-            print(f"[setup] Admin account ready -> {ADMIN_EMAIL_DEFAULT}")
+            print(f"[setup] Admin created -> {ADMIN_EMAIL_DEFAULT}")
+        else:
+            # Sync password with ADMIN_PASSWORD env variable
+            db.execute(
+                "UPDATE admins SET password_hash = ? WHERE id = ?",
+                (hashed, admin_row["id"]),
+            )
+            print(f"[setup] Admin password synced for -> {ADMIN_EMAIL_DEFAULT}")
     except Exception as e:
-        print("[setup] DB Init check:", e)
+        print("[setup] Admin sync notice:", e)
 
 
 # ---------------------------------------------------------------------------
@@ -261,13 +284,13 @@ def login():
 
     data = request.get_json(silent=True) or {}
     email = (data.get("email") or "").strip().lower()
-    password = data.get("password") or ""
+    password = (data.get("password") or "").strip()
 
     if not email or not password:
         return jsonify({"error": "Email and password are required."}), 400
 
     db = get_db()
-    admin = db.execute("SELECT * FROM admins WHERE email = ?", (email,)).fetchone()
+    admin = db.execute("SELECT * FROM admins WHERE LOWER(email) = LOWER(?)", (email,)).fetchone()
 
     if not admin or not check_password_hash(admin["password_hash"], password):
         record_attempt(ip, success=False)
@@ -385,7 +408,6 @@ def upload_paper():
         except Exception as e:
             return jsonify({"error": f"Cloudinary upload failed: {str(e)}"}), 500
     else:
-        # Local Upload (Development)
         stored_name = f"{secrets.token_hex(8)}_{safe_name}"
         file.save(os.path.join(UPLOAD_DIR, stored_name))
         stored_file_ref = stored_name

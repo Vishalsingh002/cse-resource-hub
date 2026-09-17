@@ -1,15 +1,19 @@
 import os
-import sqlite3
 import secrets
+import sqlite3
 from datetime import datetime, timedelta, timezone
 from functools import wraps
 
 from flask import (
     Flask, request, jsonify, session, send_from_directory,
-    render_template, g
+    render_template, g, redirect
 )
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
+
+# Cloudinary Library
+import cloudinary
+import cloudinary.uploader
 
 # ---------------------------------------------------------------------------
 # Config
@@ -18,11 +22,26 @@ from werkzeug.utils import secure_filename
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 DB_PATH = os.path.join(BASE_DIR, "database.db")
 UPLOAD_DIR = os.path.join(BASE_DIR, "uploads")
-MAX_FILE_BYTES = 5 * 1024 * 1024  # 5 MB per file
+MAX_FILE_BYTES = 10 * 1024 * 1024  # 10 MB per file
 ALLOWED_EXTENSIONS = {"pdf", "doc", "docx", "ppt", "pptx", "jpg", "jpeg", "png", "gif", "webp"}
 
-# These are read from environment variables — NOT hardcoded — so nothing
-# secret ever ends up inside a file that could be committed to GitHub.
+# Turso (Cloud SQLite) credentials
+TURSO_DB_URL = os.environ.get("TURSO_DATABASE_URL")
+TURSO_AUTH_TOKEN = os.environ.get("TURSO_AUTH_TOKEN")
+
+# Cloudinary credentials
+CLOUDINARY_CLOUD_NAME = os.environ.get("CLOUDINARY_CLOUD_NAME")
+CLOUDINARY_API_KEY = os.environ.get("CLOUDINARY_API_KEY")
+CLOUDINARY_API_SECRET = os.environ.get("CLOUDINARY_API_SECRET")
+
+if CLOUDINARY_CLOUD_NAME and CLOUDINARY_API_KEY:
+    cloudinary.config(
+        cloud_name=CLOUDINARY_CLOUD_NAME,
+        api_key=CLOUDINARY_API_KEY,
+        api_secret=CLOUDINARY_API_SECRET,
+        secure=True,
+    )
+
 ADMIN_EMAIL_DEFAULT = os.environ.get("ADMIN_EMAIL", "admin@college.edu")
 ADMIN_PASSWORD_DEFAULT = os.environ.get("ADMIN_PASSWORD", "ChangeMe123!")
 
@@ -43,23 +62,65 @@ app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", secrets.token_hex(32))
 app.config["MAX_CONTENT_LENGTH"] = MAX_FILE_BYTES
 app.config["SESSION_COOKIE_HTTPONLY"] = True
 app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
-# Only sends the session cookie over HTTPS. Set SESSION_COOKIE_SECURE=1 in
-# your host's environment once you're live on HTTPS (e.g. PythonAnywhere).
-# Leave it unset (defaults to off) for local http://127.0.0.1 testing.
 app.config["SESSION_COOKIE_SECURE"] = os.environ.get("SESSION_COOKIE_SECURE", "0") == "1"
 
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 
 # ---------------------------------------------------------------------------
-# Database helpers
+# Turso / SQLite Compatibility Layer
 # ---------------------------------------------------------------------------
+
+class TursoQueryResult:
+    def __init__(self, res):
+        self.res = res
+        self._rows = res.rows if res else []
+
+    def fetchone(self):
+        return self._rows[0] if self._rows else None
+
+    def fetchall(self):
+        return self._rows
+
+
+class TursoDBWrapper:
+    def __init__(self, client):
+        self.client = client
+
+    def execute(self, sql, params=None):
+        if params is None:
+            params = []
+        elif isinstance(params, tuple):
+            params = list(params)
+        res = self.client.execute(sql, params)
+        return TursoQueryResult(res)
+
+    def commit(self):
+        pass
+
+    def close(self):
+        try:
+            self.client.close()
+        except Exception:
+            pass
+
 
 def get_db():
     if "db" not in g:
-        g.db = sqlite3.connect(DB_PATH)
-        g.db.row_factory = sqlite3.Row
-        g.db.execute("PRAGMA foreign_keys = ON")
+        if TURSO_DB_URL and TURSO_AUTH_TOKEN:
+            import libsql_client
+            # URL format fix for libsql-client (libsql:// to https:// if needed)
+            url = TURSO_DB_URL
+            client = libsql_client.create_client_sync(url=url, auth_token=TURSO_AUTH_TOKEN)
+            g.db = TursoDBWrapper(client)
+        else:
+            conn = sqlite3.connect(DB_PATH)
+            conn.row_factory = sqlite3.Row
+            try:
+                conn.execute("PRAGMA foreign_keys = ON")
+            except Exception:
+                pass
+            g.db = conn
     return g.db
 
 
@@ -71,9 +132,8 @@ def close_db(_exc):
 
 
 def init_db():
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    conn.executescript(
+    db = get_db()
+    statements = [
         """
         CREATE TABLE IF NOT EXISTS admins (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -81,7 +141,8 @@ def init_db():
             password_hash TEXT NOT NULL,
             created_at TEXT NOT NULL
         );
-
+        """,
+        """
         CREATE TABLE IF NOT EXISTS papers (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             title TEXT NOT NULL,
@@ -93,7 +154,8 @@ def init_db():
             original_name TEXT NOT NULL,
             uploaded_at TEXT NOT NULL
         );
-
+        """,
+        """
         CREATE TABLE IF NOT EXISTS login_attempts (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             ip TEXT NOT NULL,
@@ -101,29 +163,33 @@ def init_db():
             success INTEGER NOT NULL
         );
         """
-    )
-    # migrate older databases that predate the optional `code` column
-    try:
-        conn.execute("ALTER TABLE papers ADD COLUMN code TEXT")
-        conn.commit()
-    except sqlite3.OperationalError:
-        pass  # column already exists
+    ]
+    for stmt in statements:
+        try:
+            db.execute(stmt)
+        except Exception:
+            pass
 
-    # seed default admin if table empty — password is hashed immediately,
-    # the plain text is never written to disk anywhere
-    existing = conn.execute("SELECT COUNT(*) AS c FROM admins").fetchone()
-    if existing["c"] == 0:
-        conn.execute(
-            "INSERT INTO admins (email, password_hash, created_at) VALUES (?, ?, ?)",
-            (
-                ADMIN_EMAIL_DEFAULT,
-                generate_password_hash(ADMIN_PASSWORD_DEFAULT),
-                datetime.now(timezone.utc).isoformat(),
-            ),
-        )
-        conn.commit()
-        print(f"[setup] Admin account ready -> {ADMIN_EMAIL_DEFAULT}")
-    conn.close()
+    try:
+        db.execute("ALTER TABLE papers ADD COLUMN code TEXT")
+    except Exception:
+        pass
+
+    try:
+        existing = db.execute("SELECT COUNT(*) AS c FROM admins").fetchone()
+        count = existing["c"] if existing else 0
+        if count == 0:
+            db.execute(
+                "INSERT INTO admins (email, password_hash, created_at) VALUES (?, ?, ?)",
+                (
+                    ADMIN_EMAIL_DEFAULT,
+                    generate_password_hash(ADMIN_PASSWORD_DEFAULT),
+                    datetime.now(timezone.utc).isoformat(),
+                ),
+            )
+            print(f"[setup] Admin account ready -> {ADMIN_EMAIL_DEFAULT}")
+    except Exception as e:
+        print("[setup] DB Init check:", e)
 
 
 # ---------------------------------------------------------------------------
@@ -305,14 +371,30 @@ def upload_paper():
         return jsonify({"error": "Unsupported file type."}), 400
 
     safe_name = secure_filename(file.filename)
-    stored_name = f"{secrets.token_hex(8)}_{safe_name}"
-    file.save(os.path.join(UPLOAD_DIR, stored_name))
+
+    # Cloudinary Upload
+    if CLOUDINARY_CLOUD_NAME and CLOUDINARY_API_KEY:
+        try:
+            upload_result = cloudinary.uploader.upload(
+                file,
+                resource_type="auto",
+                folder="quantum_hub",
+                use_filename=True,
+            )
+            stored_file_ref = upload_result.get("secure_url")
+        except Exception as e:
+            return jsonify({"error": f"Cloudinary upload failed: {str(e)}"}), 500
+    else:
+        # Local Upload (Development)
+        stored_name = f"{secrets.token_hex(8)}_{safe_name}"
+        file.save(os.path.join(UPLOAD_DIR, stored_name))
+        stored_file_ref = stored_name
 
     db = get_db()
     db.execute(
         """INSERT INTO papers (title, subject, code, semester, type, filename, original_name, uploaded_at)
            VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
-        (title, subject, code, semester, type_, stored_name, safe_name, datetime.now(timezone.utc).isoformat()),
+        (title, subject, code, semester, type_, stored_file_ref, safe_name, datetime.now(timezone.utc).isoformat()),
     )
     db.commit()
     return jsonify({"ok": True})
@@ -362,9 +444,11 @@ def delete_paper(paper_id):
     if not paper:
         return jsonify({"error": "Not found."}), 404
 
-    file_path = os.path.join(UPLOAD_DIR, paper["filename"])
-    if os.path.exists(file_path):
-        os.remove(file_path)
+    filename = paper["filename"]
+    if not filename.startswith("http"):
+        file_path = os.path.join(UPLOAD_DIR, filename)
+        if os.path.exists(file_path):
+            os.remove(file_path)
 
     db.execute("DELETE FROM papers WHERE id = ?", (paper_id,))
     db.commit()
@@ -373,9 +457,8 @@ def delete_paper(paper_id):
 
 @app.route("/uploads/<path:filename>")
 def get_upload(filename):
-    # basic path-traversal guard on top of secure_filename used at save time
-    if "/" in filename or ".." in filename:
-        return jsonify({"error": "Invalid filename."}), 400
+    if filename.startswith("http://") or filename.startswith("https://"):
+        return redirect(filename)
     return send_from_directory(UPLOAD_DIR, filename, as_attachment=False)
 
 
@@ -383,10 +466,8 @@ def get_upload(filename):
 # Entrypoint
 # ---------------------------------------------------------------------------
 
-# Runs both when started directly (`python app.py`) and when imported by a
-# production server / WSGI file (e.g. on PythonAnywhere or with gunicorn),
-# so the database and default admin always get set up.
-init_db()
+with app.app_context():
+    init_db()
 
 if __name__ == "__main__":
     debug_mode = os.environ.get("FLASK_DEBUG", "0") == "1"

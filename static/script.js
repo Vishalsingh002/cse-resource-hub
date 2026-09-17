@@ -112,7 +112,6 @@ function buildFilterUI() {
       const colorInfo = TYPE_COLORS[id];
       if (colorInfo) pill.style.setProperty("--pill-color", cssVar(colorInfo.css));
       pill.addEventListener("click", () => {
-        // Clicking the already-active pill clears the filter (shows every type again)
         state.filters.type = state.filters.type === id ? "" : id;
         updateTypePillActive();
         renderView();
@@ -139,11 +138,7 @@ function updateTypePillActive() {
 }
 
 // ---------------------------------------------------------------------
-// Master view controller — decides what's on screen:
-//   1. Search active            -> flat search results (any semester/subject)
-//   2. No semester selected     -> "pick a semester" prompt
-//   3. Semester, no subject yet -> grid of subjects in that semester
-//   4. Semester + subject       -> that subject's papers (filterable by type)
+// Master view controller
 // ---------------------------------------------------------------------
 async function renderView() {
   const subjectsGrid = el("subjectsGrid");
@@ -197,7 +192,7 @@ async function renderView() {
 }
 
 // ---------------------------------------------------------------------
-// Render the subject grid (one card per distinct subject in the semester)
+// Render the subject grid
 // ---------------------------------------------------------------------
 function renderSubjectsGrid() {
   const grid = el("subjectsGrid");
@@ -250,7 +245,7 @@ function renderSubjectsGrid() {
 }
 
 // ---------------------------------------------------------------------
-// Render the flat papers grid — used for a selected subject and for search
+// Render the flat papers grid
 // ---------------------------------------------------------------------
 function renderPapers() {
   const grid = el("papersGrid");
@@ -282,6 +277,10 @@ function renderPapers() {
     const card = document.createElement("div");
     card.className = "paper-card";
     card.style.setProperty("--card-accent", accent);
+
+    // Agar Cloudinary link hai toh direct open hoga, warna local path
+    const fileUrl = p.filename.startsWith("http") ? p.filename : `/uploads/${encodeURIComponent(p.filename)}`;
+
     card.innerHTML = `
       <span class="paper-tag" style="background:${tint};color:${accent}">
         ${TYPE_SHORT[p.type] || state.types[p.type] || p.type}
@@ -289,7 +288,7 @@ function renderPapers() {
       <h3 class="paper-title">${escapeHtml(p.title)}</h3>
       <p class="paper-meta">${escapeHtml(p.subject)}${p.code ? ` · ${escapeHtml(p.code)}` : ""} · Semester ${p.semester}</p>
       <div class="paper-actions">
-        <a href="/uploads/${encodeURIComponent(p.filename)}" target="_blank" class="btn btn-outline">Download</a>
+        <a href="${fileUrl}" target="_blank" class="btn btn-outline">Download</a>
         ${state.isAdmin ? `<button class="btn btn-outline" data-edit="${p.id}">Edit</button>` : ""}
         ${state.isAdmin ? `<button class="btn btn-danger" data-delete="${p.id}">Remove</button>` : ""}
       </div>

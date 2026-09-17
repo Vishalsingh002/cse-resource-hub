@@ -112,6 +112,7 @@ function buildFilterUI() {
       const colorInfo = TYPE_COLORS[id];
       if (colorInfo) pill.style.setProperty("--pill-color", cssVar(colorInfo.css));
       pill.addEventListener("click", () => {
+        // Toggle: click again on same pill to unselect
         state.filters.type = state.filters.type === id ? "" : id;
         updateTypePillActive();
         renderView();
@@ -178,13 +179,13 @@ async function renderView() {
     return;
   }
 
-  // Subject is selected -> Show Header and Type Buttons (END, MFT, MID, etc.)
+  // Subject is selected -> Show Header and Type Buttons
   subjectsGrid.classList.add("hidden");
   subjectHeader.classList.remove("hidden");
   typeFilter.classList.remove("hidden");
   el("subjectHeaderTitle").textContent = state.subject;
 
-  // Agar user ne abhi tak koi Type (END, MFT, MID, etc.) select nahi kiya hai:
+  // Agar koi category button click nahi kiya hai:
   if (!state.filters.type) {
     state.papers = [];
     el("papersGrid").innerHTML = "";
@@ -195,7 +196,7 @@ async function renderView() {
     return;
   }
 
-  // Jab user Type button click karega, tab sirf usi type ke papers filter honge:
+  // Sirf selected type ke papers dikhenge
   state.papers = state.semesterPapers.filter((p) => {
     return p.subject === state.subject && p.type === state.filters.type;
   });
@@ -247,7 +248,7 @@ function renderSubjectsGrid() {
       `;
       card.addEventListener("click", () => {
         state.subject = s.subject;
-        state.filters.type = ""; // Shuru me type blank rahega
+        state.filters.type = "";
         updateTypePillActive();
         renderView();
       });
@@ -401,6 +402,25 @@ function bindEvents() {
     overlay.addEventListener("click", (e) => {
       if (e.target === overlay) overlay.classList.add("hidden");
     });
+  });
+
+  // 👉 NAYA FEATURE: Screen par kahin bhi khali jagah click karne par option reset ho jayega
+  document.addEventListener("click", (e) => {
+    if (state.subject && state.filters.type) {
+      const isInsidePill = e.target.closest(".type-pill");
+      const isInsidePaper = e.target.closest(".paper-card");
+      const isInsideModal = e.target.closest(".modal");
+      const isInsideHeader = e.target.closest(".subject-header");
+      const isInsideControls = e.target.closest(".controls-row");
+      const isInsideHero = e.target.closest(".hero");
+
+      // Agar button ya card ke bahar screen par kahin bhi click hua
+      if (!isInsidePill && !isInsidePaper && !isInsideModal && !isInsideHeader && !isInsideControls && !isInsideHero) {
+        state.filters.type = "";
+        updateTypePillActive();
+        renderView();
+      }
+    }
   });
 
   el("loginForm").addEventListener("submit", async (e) => {

@@ -142,6 +142,16 @@ function renderPapers() {
   const empty = el("emptyState");
   grid.innerHTML = "";
 
+  // Show nothing until the user picks a semester — avoids dumping every
+  // uploaded paper on the page the moment it loads.
+  if (!state.filters.semester) {
+    empty.classList.remove("hidden");
+    el("emptyTitle").textContent = "Select a semester to view resources";
+    el("emptyText").textContent = "Tap a semester above to see its papers, notes, and syllabus.";
+    el("emptyActionBtn").classList.add("hidden");
+    return;
+  }
+
   if (state.papers.length === 0) {
     empty.classList.remove("hidden");
     const semLabel = state.filters.semester ? `Semester ${state.filters.semester}` : "this filter";
@@ -207,13 +217,12 @@ function updateAdminUI() {
 }
 
 async function deletePaper(id) {
-  if (!confirm("Remove this resource? This cannot be undone.")) return;
   try {
     await api(`/api/papers/${id}`, { method: "DELETE" });
     await loadPapers();
     await loadStats();
   } catch (err) {
-    alert(err.message);
+    console.error("Delete failed:", err.message);
   }
 }
 
@@ -231,7 +240,6 @@ function bindEvents() {
   el("emptyActionBtn").addEventListener("click", () => openModal("uploadModal"));
 
   el("adminPill").addEventListener("click", async () => {
-    if (!confirm("Sign out of admin mode?")) return;
     await api("/api/logout", { method: "POST" });
     state.isAdmin = false;
     updateAdminUI();

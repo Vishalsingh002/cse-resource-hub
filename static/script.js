@@ -1,15 +1,17 @@
 const state = {
-  papers: [],
-  allPapers: [],
+  papers: [],           // currently rendered flat list (search results OR a subject's papers)
+  allPapers: [],         // used for the top stats bar only
+  semesterPapers: [],     // every paper (any type) for the currently selected semester
   types: {},
   semesters: [],
   isAdmin: false,
   filters: { semester: "", type: "", q: "" },
+  subject: "",            // currently selected subject within a semester ("" = showing subject list)
 };
 
 const el = (id) => document.getElementById(id);
 
-const TYPE_SHORT = { pyq: "PYQ", mid: "MID", mft: "MFT", ent: "END", notes: "NOTES", syl: "SYL" };
+const TYPE_SHORT = { pyq: "PYQ", mid: "MID", mft: "MFT", ent: "END", notes: "NOTES", syl: "SYL", tut: "TUTORIAL" };
 const TYPE_COLORS = {
   pyq: { css: "--pyq-color", tintCss: "--pyq-tint" },
   mid: { css: "--mid-color", tintCss: "--mid-tint" },
@@ -17,6 +19,7 @@ const TYPE_COLORS = {
   ent: { css: "--end-color", tintCss: "--end-tint" },
   notes: { css: "--notes-color", tintCss: "--notes-tint" },
   syl: { css: "--syl-color", tintCss: "--syl-tint" },
+  tut: { css: "--assign-color", tintCss: "--assign-tint" },
 };
 const rootStyles = getComputedStyle(document.documentElement);
 const cssVar = (name) => rootStyles.getPropertyValue(name).trim();
@@ -36,21 +39,18 @@ async function api(path, options = {}) {
 }
 
 // ---------------------------------------------------------------------
-// Load papers + filters + stats
+// Load meta (types + semester list) once, and a semester's full paper list
 // ---------------------------------------------------------------------
-async function loadPapers() {
-  const params = new URLSearchParams();
-  if (state.filters.semester) params.set("semester", state.filters.semester);
-  if (state.filters.type) params.set("type", state.filters.type);
-  if (state.filters.q) params.set("q", state.filters.q);
-
-  const data = await api(`/api/papers?${params.toString()}`);
-  state.papers = data.papers;
+async function loadMeta() {
+  const data = await api("/api/papers");
   state.types = data.types;
   state.semesters = data.semesters;
-
   buildFilterUI();
-  renderPapers();
+}
+
+async function loadSemesterPapers(semester) {
+  const data = await api(`/api/papers?semester=${encodeURIComponent(semester)}`);
+  state.semesterPapers = data.papers;
 }
 
 async function loadStats() {
@@ -69,6 +69,8 @@ function buildFilterUI() {
   const typePills = el("typeFilter");
   const uploadSemSelect = el("uploadSemester");
   const uploadTypeSelect = el("uploadType");
+  const editSemSelect = el("editSemester");
+  const editTypeSelect = el("editType");
 
   if (semTabs.children.length === 0) {
     state.semesters.forEach((s) => {
@@ -77,30 +79,30 @@ function buildFilterUI() {
       tab.className = "sem-tab";
       tab.dataset.semester = s;
       tab.innerHTML = `<div class="sem-tab-label">Sem</div><div class="sem-tab-num">${s}</div>`;
-      tab.addEventListener("click", () => {
-        state.filters.semester = state.filters.semester === String(s) ? "" : String(s);
+      tab.addEventListener("click", async () => {
+        const newSem = state.filters.semester === String(s) ? "" : String(s);
+        state.filters.semester = newSem;
+        state.subject = "";
+        state.filters.type = "";
+        state.filters.q = "";
+        el("searchInput").value = "";
         updateSemTabActive();
-        loadPapers();
+        updateTypePillActive();
+        if (newSem) {
+          await loadSemesterPapers(newSem);
+        } else {
+          state.semesterPapers = [];
+        }
+        renderView();
       });
       semTabs.appendChild(tab);
       uploadSemSelect.add(new Option(`Semester ${s}`, s));
+      editSemSelect.add(new Option(`Semester ${s}`, s));
     });
     updateSemTabActive();
   }
 
   if (typePills.children.length === 0) {
-    const allPill = document.createElement("button");
-    allPill.type = "button";
-    allPill.className = "type-pill pill-all";
-    allPill.dataset.type = "";
-    allPill.textContent = "ALL";
-    allPill.addEventListener("click", () => {
-      state.filters.type = "";
-      updateTypePillActive();
-      loadPapers();
-    });
-    typePills.appendChild(allPill);
-
     Object.entries(state.types).forEach(([id, label]) => {
       const pill = document.createElement("button");
       pill.type = "button";
@@ -110,13 +112,15 @@ function buildFilterUI() {
       const colorInfo = TYPE_COLORS[id];
       if (colorInfo) pill.style.setProperty("--pill-color", cssVar(colorInfo.css));
       pill.addEventListener("click", () => {
-        state.filters.type = id;
+        // Clicking the already-active pill clears the filter (shows every type again)
+        state.filters.type = state.filters.type === id ? "" : id;
         updateTypePillActive();
-        loadPapers();
+        renderView();
       });
       typePills.appendChild(pill);
 
       uploadTypeSelect.add(new Option(label, id));
+      editTypeSelect.add(new Option(label, id));
     });
     updateTypePillActive();
   }
@@ -135,33 +139,138 @@ function updateTypePillActive() {
 }
 
 // ---------------------------------------------------------------------
-// Render papers grid
+// Master view controller — decides what's on screen:
+//   1. Search active            -> flat search results (any semester/subject)
+//   2. No semester selected     -> "pick a semester" prompt
+//   3. Semester, no subject yet -> grid of subjects in that semester
+//   4. Semester + subject       -> that subject's papers (filterable by type)
+// ---------------------------------------------------------------------
+async function renderView() {
+  const subjectsGrid = el("subjectsGrid");
+  const subjectHeader = el("subjectHeader");
+  const typeFilter = el("typeFilter");
+  const empty = el("emptyState");
+
+  if (state.filters.q) {
+    subjectsGrid.classList.add("hidden");
+    subjectHeader.classList.add("hidden");
+    typeFilter.classList.add("hidden");
+    const data = await api(`/api/papers?${new URLSearchParams({ q: state.filters.q })}`);
+    state.papers = data.papers;
+    renderPapers();
+    return;
+  }
+
+  if (!state.filters.semester) {
+    subjectsGrid.classList.add("hidden");
+    subjectHeader.classList.add("hidden");
+    typeFilter.classList.add("hidden");
+    state.papers = [];
+    el("papersGrid").innerHTML = "";
+    empty.classList.remove("hidden");
+    el("emptyTitle").textContent = "Select a semester to view resources";
+    el("emptyText").textContent = "Tap a semester above to see its subjects.";
+    el("emptyActionBtn").classList.add("hidden");
+    return;
+  }
+
+  if (!state.subject) {
+    subjectHeader.classList.add("hidden");
+    typeFilter.classList.add("hidden");
+    state.papers = [];
+    el("papersGrid").innerHTML = "";
+    renderSubjectsGrid();
+    return;
+  }
+
+  subjectsGrid.classList.add("hidden");
+  subjectHeader.classList.remove("hidden");
+  typeFilter.classList.remove("hidden");
+  el("subjectHeaderTitle").textContent = state.subject;
+
+  state.papers = state.semesterPapers.filter((p) => {
+    if (p.subject !== state.subject) return false;
+    if (state.filters.type && p.type !== state.filters.type) return false;
+    return true;
+  });
+  renderPapers();
+}
+
+// ---------------------------------------------------------------------
+// Render the subject grid (one card per distinct subject in the semester)
+// ---------------------------------------------------------------------
+function renderSubjectsGrid() {
+  const grid = el("subjectsGrid");
+  const empty = el("emptyState");
+  grid.innerHTML = "";
+  grid.classList.remove("hidden");
+
+  if (state.semesterPapers.length === 0) {
+    grid.classList.add("hidden");
+    empty.classList.remove("hidden");
+    el("emptyTitle").textContent = `Nothing here yet for Semester ${state.filters.semester}`;
+    el("emptyText").textContent = state.isAdmin
+      ? "Add the first paper for this semester below."
+      : "Ask an admin to add resources here.";
+    el("emptyActionBtn").classList.toggle("hidden", !state.isAdmin);
+    return;
+  }
+  empty.classList.add("hidden");
+
+  const bySubject = new Map();
+  state.semesterPapers.forEach((p) => {
+    if (!bySubject.has(p.subject)) {
+      bySubject.set(p.subject, { subject: p.subject, code: p.code, count: 0, firstType: p.type });
+    }
+    bySubject.get(p.subject).count += 1;
+  });
+
+  Array.from(bySubject.values())
+    .sort((a, b) => a.subject.localeCompare(b.subject))
+    .forEach((s) => {
+      const colorInfo = TYPE_COLORS[s.firstType];
+      const accent = colorInfo ? cssVar(colorInfo.css) : cssVar("--brand-pink");
+      const card = document.createElement("button");
+      card.type = "button";
+      card.className = "subject-card";
+      card.style.setProperty("--card-accent", accent);
+      card.innerHTML = `
+        <h3 class="subject-card-name">${escapeHtml(s.subject)}</h3>
+        ${s.code ? `<p class="subject-card-code">${escapeHtml(s.code)}</p>` : ""}
+        <span class="subject-card-count">${s.count} resource${s.count > 1 ? "s" : ""}</span>
+      `;
+      card.addEventListener("click", () => {
+        state.subject = s.subject;
+        state.filters.type = "";
+        updateTypePillActive();
+        renderView();
+      });
+      grid.appendChild(card);
+    });
+}
+
+// ---------------------------------------------------------------------
+// Render the flat papers grid — used for a selected subject and for search
 // ---------------------------------------------------------------------
 function renderPapers() {
   const grid = el("papersGrid");
   const empty = el("emptyState");
   grid.innerHTML = "";
 
-  // Show nothing until the user picks a semester — avoids dumping every
-  // uploaded paper on the page the moment it loads.
-  if (!state.filters.semester) {
-    empty.classList.remove("hidden");
-    el("emptyTitle").textContent = "Select a semester to view resources";
-    el("emptyText").textContent = "Tap a semester above to see its papers, notes, and syllabus.";
-    el("emptyActionBtn").classList.add("hidden");
-    return;
-  }
-
   if (state.papers.length === 0) {
     empty.classList.remove("hidden");
-    const semLabel = state.filters.semester ? `Semester ${state.filters.semester}` : "this filter";
-    el("emptyTitle").textContent = state.filters.semester || state.filters.type || state.filters.q
-      ? `Nothing here yet for ${semLabel}`
-      : "Nothing here yet";
-    el("emptyText").textContent = state.isAdmin
-      ? "Add the first paper for this semester below."
-      : "Ask an admin to add resources here.";
-    el("emptyActionBtn").classList.toggle("hidden", !state.isAdmin);
+    if (state.filters.q) {
+      el("emptyTitle").textContent = "No matches found";
+      el("emptyText").textContent = "Try a different search term.";
+      el("emptyActionBtn").classList.add("hidden");
+    } else {
+      const label = state.subject ? `${state.subject} (Semester ${state.filters.semester})` : `Semester ${state.filters.semester}`;
+      el("emptyTitle").textContent = `Nothing here yet for ${label}`;
+      el("emptyText").textContent = state.isAdmin
+        ? "Add the first paper here below."
+        : "Ask an admin to add resources here.";
+      el("emptyActionBtn").classList.toggle("hidden", !state.isAdmin);
+    }
     return;
   }
   empty.classList.add("hidden");
@@ -181,6 +290,7 @@ function renderPapers() {
       <p class="paper-meta">${escapeHtml(p.subject)}${p.code ? ` · ${escapeHtml(p.code)}` : ""} · Semester ${p.semester}</p>
       <div class="paper-actions">
         <a href="/uploads/${encodeURIComponent(p.filename)}" target="_blank" class="btn btn-outline">Download</a>
+        ${state.isAdmin ? `<button class="btn btn-outline" data-edit="${p.id}">Edit</button>` : ""}
         ${state.isAdmin ? `<button class="btn btn-danger" data-delete="${p.id}">Remove</button>` : ""}
       </div>
     `;
@@ -190,6 +300,9 @@ function renderPapers() {
   if (state.isAdmin) {
     grid.querySelectorAll("[data-delete]").forEach((btn) => {
       btn.addEventListener("click", () => deletePaper(btn.dataset.delete));
+    });
+    grid.querySelectorAll("[data-edit]").forEach((btn) => {
+      btn.addEventListener("click", () => openEditModal(btn.dataset.edit));
     });
   }
 }
@@ -213,17 +326,37 @@ function updateAdminUI() {
   el("adminPill").classList.toggle("hidden", !state.isAdmin);
   el("adminBtn").classList.toggle("hidden", state.isAdmin);
   el("uploadBtn").classList.toggle("hidden", !state.isAdmin);
-  renderPapers();
+  renderView();
+}
+
+async function refreshCurrentSemester() {
+  if (state.filters.semester) {
+    await loadSemesterPapers(state.filters.semester);
+  }
+  await renderView();
 }
 
 async function deletePaper(id) {
   try {
     await api(`/api/papers/${id}`, { method: "DELETE" });
-    await loadPapers();
+    await refreshCurrentSemester();
     await loadStats();
   } catch (err) {
     console.error("Delete failed:", err.message);
   }
+}
+
+function openEditModal(id) {
+  const paper = state.papers.find((p) => String(p.id) === String(id));
+  if (!paper) return;
+  el("editPaperId").value = paper.id;
+  el("editTitle").value = paper.title;
+  el("editSemester").value = paper.semester;
+  el("editType").value = paper.type;
+  el("editSubject").value = paper.subject;
+  el("editCode").value = paper.code || "";
+  el("editError").classList.add("hidden");
+  openModal("editModal");
 }
 
 // ---------------------------------------------------------------------
@@ -231,13 +364,20 @@ async function deletePaper(id) {
 // ---------------------------------------------------------------------
 function bindEvents() {
   el("searchInput").addEventListener("input", debounce((e) => {
-    state.filters.q = e.target.value;
-    loadPapers();
+    state.filters.q = e.target.value.trim();
+    renderView();
   }, 300));
 
   el("adminBtn").addEventListener("click", () => openModal("loginModal"));
   el("uploadBtn").addEventListener("click", () => openModal("uploadModal"));
   el("emptyActionBtn").addEventListener("click", () => openModal("uploadModal"));
+
+  el("backToSubjectsBtn").addEventListener("click", () => {
+    state.subject = "";
+    state.filters.type = "";
+    updateTypePillActive();
+    renderView();
+  });
 
   el("adminPill").addEventListener("click", async () => {
     await api("/api/logout", { method: "POST" });
@@ -301,7 +441,7 @@ function bindEvents() {
       closeModal("uploadModal");
       el("uploadForm").reset();
       resetFileDropzone();
-      await loadPapers();
+      await refreshCurrentSemester();
       await loadStats();
     } catch (err) {
       errorEl.textContent = err.message;
@@ -318,6 +458,34 @@ function bindEvents() {
     el("fileDropzone").classList.add("has-file");
     el("filePreviewName").textContent = file.name;
     el("filePreviewMeta").textContent = `${(file.size / (1024 * 1024)).toFixed(2)}MB · tap to replace`;
+  });
+
+  el("editForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const errorEl = el("editError");
+    errorEl.classList.add("hidden");
+
+    const id = el("editPaperId").value;
+    const payload = {
+      title: el("editTitle").value.trim(),
+      subject: el("editSubject").value.trim(),
+      code: el("editCode").value.trim(),
+      semester: el("editSemester").value,
+      type: el("editType").value,
+    };
+
+    try {
+      await api(`/api/papers/${id}`, {
+        method: "PUT",
+        body: JSON.stringify(payload),
+      });
+      closeModal("editModal");
+      el("editForm").reset();
+      await refreshCurrentSemester();
+    } catch (err) {
+      errorEl.textContent = err.message;
+      errorEl.classList.remove("hidden");
+    }
   });
 }
 
@@ -347,7 +515,8 @@ function debounce(fn, delay) {
   loadingEl.classList.remove("hidden");
   try {
     await checkSession();
-    await loadPapers();
+    await loadMeta();
+    await renderView();
     await loadStats();
   } finally {
     loadingEl.classList.add("hidden");

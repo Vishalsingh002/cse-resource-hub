@@ -31,12 +31,11 @@ LOCKOUT_MINUTES = 10
 
 SEMESTERS = list(range(1, 9))
 TYPES = {
-    "pyq": "Previous Year Paper",
     "mid": "Mid Term",
     "mft": "MFT",
     "ent": "End Term",
-    "notes": "Notes",
     "syl": "Syllabus",
+    "tut": "Tutorial",
 }
 
 app = Flask(__name__)
@@ -314,6 +313,42 @@ def upload_paper():
         """INSERT INTO papers (title, subject, code, semester, type, filename, original_name, uploaded_at)
            VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
         (title, subject, code, semester, type_, stored_name, safe_name, datetime.now(timezone.utc).isoformat()),
+    )
+    db.commit()
+    return jsonify({"ok": True})
+
+
+@app.route("/api/papers/<int:paper_id>", methods=["PUT"])
+@admin_required
+def update_paper(paper_id):
+    db = get_db()
+    paper = db.execute("SELECT * FROM papers WHERE id = ?", (paper_id,)).fetchone()
+    if not paper:
+        return jsonify({"error": "Not found."}), 404
+
+    data = request.get_json(silent=True) or {}
+    title = (data.get("title") or "").strip()
+    subject = (data.get("subject") or "").strip()
+    code = (data.get("code") or "").strip() or None
+    semester = data.get("semester")
+    type_ = data.get("type")
+
+    try:
+        semester = int(semester)
+    except (TypeError, ValueError):
+        semester = None
+
+    if not title or not subject or not semester or not type_:
+        return jsonify({"error": "All fields are required."}), 400
+    if semester not in SEMESTERS:
+        return jsonify({"error": "Invalid semester."}), 400
+    if type_ not in TYPES:
+        return jsonify({"error": "Invalid resource type."}), 400
+
+    db.execute(
+        """UPDATE papers SET title = ?, subject = ?, code = ?, semester = ?, type = ?
+           WHERE id = ?""",
+        (title, subject, code, semester, type_, paper_id),
     )
     db.commit()
     return jsonify({"ok": True})

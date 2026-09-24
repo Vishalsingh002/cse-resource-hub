@@ -1,12 +1,13 @@
 import os
 import secrets
 import sqlite3
+import urllib.request
 from datetime import datetime, timedelta, timezone
 from functools import wraps
 
 from flask import (
     Flask, request, jsonify, session, send_from_directory,
-    render_template, g, redirect
+    render_template, g, redirect, Response
 )
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
@@ -193,7 +194,6 @@ def init_db():
     except Exception:
         pass
 
-    # Ensure admin user is ALWAYS synchronized with current env credentials
     try:
         admin_row = db.execute("SELECT * FROM admins WHERE LOWER(email) = LOWER(?)", (ADMIN_EMAIL_DEFAULT,)).fetchone()
         hashed = generate_password_hash(ADMIN_PASSWORD_DEFAULT)
@@ -205,7 +205,6 @@ def init_db():
             )
             print(f"[setup] Admin created -> {ADMIN_EMAIL_DEFAULT}")
         else:
-            # Sync password with ADMIN_PASSWORD env variable
             db.execute(
                 "UPDATE admins SET password_hash = ? WHERE id = ?",
                 (hashed, admin_row["id"]),
@@ -475,6 +474,35 @@ def delete_paper(paper_id):
     db.execute("DELETE FROM papers WHERE id = ?", (paper_id,))
     db.commit()
     return jsonify({"ok": True})
+
+
+# 👉 NAYA DIRECT DOWNLOAD ROUTE (Poori file download hogi bina corrupt huye)
+@app.route("/api/download/<int:paper_id>")
+def download_paper_file(paper_id):
+    db = get_db()
+    paper = db.execute("SELECT * FROM papers WHERE id = ?", (paper_id,)).fetchone()
+    if not paper:
+        return jsonify({"error": "File not found"}), 404
+
+    file_url = paper["filename"]
+    filename = paper["original_name"] or f"{paper['title']}.pdf"
+    if not filename.lower().endswith(".pdf") and "." not in filename:
+        filename += ".pdf"
+
+    if file_url.startswith("http"):
+        try:
+            req = urllib.request.Request(file_url, headers={'User-Agent': 'Mozilla/5.0'})
+            with urllib.request.urlopen(req) as response:
+                file_data = response.read()
+            return Response(
+                file_data,
+                mimetype="application/pdf",
+                headers={"Content-Disposition": f'attachment; filename="{filename}"'}
+            )
+        except Exception:
+            return redirect(file_url)
+    else:
+        return send_from_directory(UPLOAD_DIR, file_url, as_attachment=True, download_name=filename)
 
 
 @app.route("/uploads/<path:filename>")

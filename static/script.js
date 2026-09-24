@@ -178,11 +178,13 @@ async function renderView() {
     return;
   }
 
+  // Subject is selected -> Show Header and Type Buttons
   subjectsGrid.classList.add("hidden");
   subjectHeader.classList.remove("hidden");
   typeFilter.classList.remove("hidden");
   el("subjectHeaderTitle").textContent = state.subject;
 
+  // Agar koi category button click nahi kiya hai:
   if (!state.filters.type) {
     state.papers = [];
     el("papersGrid").innerHTML = "";
@@ -193,6 +195,7 @@ async function renderView() {
     return;
   }
 
+  // Sirf selected category ke papers dikhenge
   state.papers = state.semesterPapers.filter((p) => {
     return p.subject === state.subject && p.type === state.filters.type;
   });
@@ -253,7 +256,7 @@ function renderSubjectsGrid() {
 }
 
 // ---------------------------------------------------------------------
-// Render the flat papers grid (WITH NATIVE BLOB DOWNLOAD)
+// Render the flat papers grid (WITH DIRECT SERVER DOWNLOAD)
 // ---------------------------------------------------------------------
 function renderPapers() {
   const grid = el("papersGrid");
@@ -286,9 +289,6 @@ function renderPapers() {
     card.className = "paper-card";
     card.style.setProperty("--card-accent", accent);
 
-    const fileUrl = p.filename.startsWith("http") ? p.filename : `/uploads/${encodeURIComponent(p.filename)}`;
-    const downloadFileName = p.original_name || `${p.title}.pdf`;
-
     card.innerHTML = `
       <span class="paper-tag" style="background:${tint};color:${accent}">
         ${TYPE_SHORT[p.type] || state.types[p.type] || p.type}
@@ -296,45 +296,13 @@ function renderPapers() {
       <h3 class="paper-title">${escapeHtml(p.title)}</h3>
       <p class="paper-meta">${escapeHtml(p.subject)}${p.code ? ` · ${escapeHtml(p.code)}` : ""} · Semester ${p.semester}</p>
       <div class="paper-actions">
-        <button type="button" class="btn btn-outline download-btn" data-url="${fileUrl}" data-name="${escapeHtml(downloadFileName)}">
-          Download
-        </button>
+        <!-- Direct Clean Server Download -->
+        <a href="/api/download/${p.id}" class="btn btn-outline">Download</a>
         ${state.isAdmin ? `<button class="btn btn-outline" data-edit="${p.id}">Edit</button>` : ""}
         ${state.isAdmin ? `<button class="btn btn-danger" data-delete="${p.id}">Remove</button>` : ""}
       </div>
     `;
     grid.appendChild(card);
-  });
-
-  // 👉 Direct File Download Handler
-  grid.querySelectorAll(".download-btn").forEach((btn) => {
-    btn.addEventListener("click", async () => {
-      const url = btn.dataset.url;
-      const fileName = btn.dataset.name || "paper.pdf";
-      const originalText = btn.textContent;
-      btn.textContent = "Downloading...";
-      btn.disabled = true;
-
-      try {
-        const response = await fetch(url);
-        if (!response.ok) throw new Error("Network error");
-        const blob = await response.blob();
-        const blobUrl = window.URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = blobUrl;
-        a.download = fileName;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        setTimeout(() => window.URL.revokeObjectURL(blobUrl), 1000);
-      } catch (err) {
-        // Fallback: Agar fetch fail ho toh normal window open karein
-        window.open(url, "_blank");
-      } finally {
-        btn.textContent = originalText;
-        btn.disabled = false;
-      }
-    });
   });
 
   if (state.isAdmin) {
@@ -434,7 +402,7 @@ function bindEvents() {
     });
   });
 
-  // Screen par kahin bhi click karne par category unselect
+  // Screen par kahin bhi khali jagah click karne par category unselect
   document.addEventListener("click", (e) => {
     if (state.subject && state.filters.type) {
       const isInsidePill = e.target.closest(".type-pill");

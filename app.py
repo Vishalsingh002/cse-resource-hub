@@ -150,7 +150,15 @@ def close_db(_exc):
         db.close()
 
 
+# 👉 Nayi Line 1:
+_db_initialized = False
+
 def init_db():
+    # 👉 Nayi Line 2 & 3:
+    global _db_initialized
+    if _db_initialized:
+        return
+
     db = get_db()
     statements = [
         """
@@ -212,6 +220,13 @@ def init_db():
             print(f"[setup] Admin password synced for -> {ADMIN_EMAIL_DEFAULT}")
     except Exception as e:
         print("[setup] Admin sync notice:", e)
+
+    # 👉 Nayi Line 4:
+    _db_initialized = True
+
+
+# ---------------------------------------------------------------------------
+# Auth helpers
 
 
 # ---------------------------------------------------------------------------
@@ -478,31 +493,26 @@ def delete_paper(paper_id):
 
 # 👉 NAYA DIRECT DOWNLOAD ROUTE (Poori file download hogi bina corrupt huye)
 @app.route("/api/download/<int:paper_id>")
-def download_paper_file(paper_id):
+def download_paper(paper_id):
     db = get_db()
-    paper = db.execute("SELECT * FROM papers WHERE id = ?", (paper_id,)).fetchone()
+    cur = db.execute("SELECT filename FROM papers WHERE id = ?", (paper_id,))
+    paper = cur.fetchone()
     if not paper:
-        return jsonify({"error": "File not found"}), 404
+        return jsonify({"error": "Paper not found"}), 404
+
+    try:
+        db.execute("UPDATE papers SET downloads = downloads + 1 WHERE id = ?", (paper_id,))
+        db.commit()
+    except Exception:
+        pass
 
     file_url = paper["filename"]
-    filename = paper["original_name"] or f"{paper['title']}.pdf"
-    if not filename.lower().endswith(".pdf") and "." not in filename:
-        filename += ".pdf"
+    
+    # Direct Cloudinary se instant download (0 second delay, no Vercel hang)
+    if file_url.startswith("http://") or file_url.startswith("https://"):
+        return redirect(file_url)
 
-    if file_url.startswith("http"):
-        try:
-            req = urllib.request.Request(file_url, headers={'User-Agent': 'Mozilla/5.0'})
-            with urllib.request.urlopen(req) as response:
-                file_data = response.read()
-            return Response(
-                file_data,
-                mimetype="application/pdf",
-                headers={"Content-Disposition": f'attachment; filename="{filename}"'}
-            )
-        except Exception:
-            return redirect(file_url)
-    else:
-        return send_from_directory(UPLOAD_DIR, file_url, as_attachment=True, download_name=filename)
+    return send_from_directory(UPLOAD_DIR, file_url, as_attachment=True)
 
 
 @app.route("/uploads/<path:filename>")

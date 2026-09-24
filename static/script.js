@@ -1,17 +1,23 @@
-const state = {
-  papers: [],           // currently rendered flat list (search results OR a subject's papers)
-  allPapers: [],         // used for the top stats bar only
-  semesterPapers: [],     // every paper (any type) for the currently selected semester
-  types: {},
-  semesters: [],
-  isAdmin: false,
-  filters: { semester: "", type: "", q: "" },
-  subject: "",            // currently selected subject within a semester ("" = showing subject list)
+const DEFAULT_TYPES = {
+  pyq: "Previous Year (PYQ)",
+  mid: "Mid-Term",
+  mft: "MFT",
+  ent: "End-Term",
+  notes: "Notes",
+  syl: "Syllabus",
+  tut: "Tutorial",
 };
 
-const el = (id) => document.getElementById(id);
+const TYPE_SHORT = {
+  pyq: "PYQ",
+  mid: "MID",
+  mft: "MFT",
+  ent: "END",
+  notes: "NOTES",
+  syl: "SYL",
+  tut: "TUTORIAL",
+};
 
-const TYPE_SHORT = { pyq: "PYQ", mid: "MID", mft: "MFT", ent: "END", notes: "NOTES", syl: "SYL", tut: "TUTORIAL" };
 const TYPE_COLORS = {
   pyq: { css: "--pyq-color", tintCss: "--pyq-tint" },
   mid: { css: "--mid-color", tintCss: "--mid-tint" },
@@ -21,11 +27,24 @@ const TYPE_COLORS = {
   syl: { css: "--syl-color", tintCss: "--syl-tint" },
   tut: { css: "--assign-color", tintCss: "--assign-tint" },
 };
+
+const state = {
+  allPapers: [],        // master list of all papers in memory
+  papers: [],           // currently visible flat list
+  semesterPapers: [],   // papers for currently selected semester
+  types: DEFAULT_TYPES,
+  semesters: [1, 2, 3, 4, 5, 6, 7, 8],
+  isAdmin: false,
+  filters: { semester: "", type: "", q: "" },
+  subject: "",
+};
+
+const el = (id) => document.getElementById(id);
 const rootStyles = getComputedStyle(document.documentElement);
 const cssVar = (name) => rootStyles.getPropertyValue(name).trim();
 
 // ---------------------------------------------------------------------
-// API helpers
+// API helper
 // ---------------------------------------------------------------------
 async function api(path, options = {}) {
   const res = await fetch(path, {
@@ -38,31 +57,50 @@ async function api(path, options = {}) {
   return data;
 }
 
-// ---------------------------------------------------------------------
-// Load meta (types + semester list) once, and a semester's full paper list
-// ---------------------------------------------------------------------
-async function loadMeta() {
-  const data = await api("/api/papers");
-  state.types = data.types;
-  state.semesters = data.semesters;
-  buildFilterUI();
+// Normalize paper objects to ensure type/paper_type compatibility
+function normalizePaper(p) {
+  const rawType = (p.paper_type || p.type || "pyq").toLowerCase();
+  let typeKey = "pyq";
+  if (rawType.includes("mid")) typeKey = "mid";
+  else if (rawType.includes("end") || rawType.includes("ent")) typeKey = "ent";
+  else if (rawType.includes("mft")) typeKey = "mft";
+  else if (rawType.includes("note")) typeKey = "notes";
+  else if (rawType.includes("syl")) typeKey = "syl";
+  else if (rawType.includes("tut")) typeKey = "tut";
+  else if (TYPE_SHORT[rawType]) typeKey = rawType;
+
+  return {
+    ...p,
+    type: typeKey,
+    paper_type: typeKey,
+    semester: Number(p.semester),
+    code: p.code || ""
+  };
 }
 
-async function loadSemesterPapers(semester) {
-  const data = await api(`/api/papers?semester=${encodeURIComponent(semester)}`);
-  state.semesterPapers = data.papers;
+// ---------------------------------------------------------------------
+// Fetch all papers ONCE and populate stats
+// ---------------------------------------------------------------------
+async function fetchAllPapers() {
+  try {
+    const data = await api("/api/papers");
+    const rawList = Array.isArray(data) ? data : (data.papers || []);
+    state.allPapers = rawList.map(normalizePaper);
+    updateStats();
+  } catch (err) {
+    console.error("Failed to load papers:", err);
+    state.allPapers = [];
+  }
 }
 
-async function loadStats() {
-  const data = await api("/api/papers");
-  state.allPapers = data.papers;
+function updateStats() {
   const semestersCovered = new Set(state.allPapers.map((p) => p.semester)).size;
-  el("statPapers").textContent = state.allPapers.length;
-  el("statSemesters").textContent = `${semestersCovered}/${state.semesters.length || 8}`;
+  if (el("statPapers")) el("statPapers").textContent = state.allPapers.length;
+  if (el("statSemesters")) el("statSemesters").textContent = `${semestersCovered}/8`;
 }
 
 // ---------------------------------------------------------------------
-// Build semester tabs + category pills (once)
+// Build semester tabs + category pills
 // ---------------------------------------------------------------------
 function buildFilterUI() {
   const semTabs = el("semesterTabs");
@@ -72,37 +110,40 @@ function buildFilterUI() {
   const editSemSelect = el("editSemester");
   const editTypeSelect = el("editType");
 
-  if (semTabs.children.length === 0) {
+  if (semTabs && semTabs.children.length === 0) {
     state.semesters.forEach((s) => {
       const tab = document.createElement("button");
       tab.type = "button";
       tab.className = "sem-tab";
       tab.dataset.semester = s;
       tab.innerHTML = `<div class="sem-tab-label">Sem</div><div class="sem-tab-num">${s}</div>`;
-      tab.addEventListener("click", async () => {
+      tab.addEventListener("click", () => {
         const newSem = state.filters.semester === String(s) ? "" : String(s);
         state.filters.semester = newSem;
         state.subject = "";
         state.filters.type = "";
         state.filters.q = "";
-        el("searchInput").value = "";
+        if (el("searchInput")) el("searchInput").value = "";
         updateSemTabActive();
         updateTypePillActive();
+
+        // Instant local filter without network request!
         if (newSem) {
-          await loadSemesterPapers(newSem);
+          state.semesterPapers = state.allPapers.filter((p) => p.semester === Number(newSem));
         } else {
           state.semesterPapers = [];
         }
         renderView();
       });
       semTabs.appendChild(tab);
-      uploadSemSelect.add(new Option(`Semester ${s}`, s));
-      editSemSelect.add(new Option(`Semester ${s}`, s));
+
+      if (uploadSemSelect) uploadSemSelect.add(new Option(`Semester ${s}`, s));
+      if (editSemSelect) editSemSelect.add(new Option(`Semester ${s}`, s));
     });
     updateSemTabActive();
   }
 
-  if (typePills.children.length === 0) {
+  if (typePills && typePills.children.length === 0) {
     Object.entries(state.types).forEach(([id, label]) => {
       const pill = document.createElement("button");
       pill.type = "button";
@@ -118,44 +159,56 @@ function buildFilterUI() {
       });
       typePills.appendChild(pill);
 
-      uploadTypeSelect.add(new Option(label, id));
-      editTypeSelect.add(new Option(label, id));
+      if (uploadTypeSelect) uploadTypeSelect.add(new Option(label, id));
+      if (editTypeSelect) editTypeSelect.add(new Option(label, id));
     });
     updateTypePillActive();
   }
 }
 
 function updateSemTabActive() {
-  el("semesterTabs").querySelectorAll(".sem-tab").forEach((tab) => {
+  const semTabs = el("semesterTabs");
+  if (!semTabs) return;
+  semTabs.querySelectorAll(".sem-tab").forEach((tab) => {
     tab.classList.toggle("active", tab.dataset.semester === state.filters.semester);
   });
 }
 
 function updateTypePillActive() {
-  el("typeFilter").querySelectorAll(".type-pill").forEach((pill) => {
+  const typeFilter = el("typeFilter");
+  if (!typeFilter) return;
+  typeFilter.querySelectorAll(".type-pill").forEach((pill) => {
     pill.classList.toggle("active", pill.dataset.type === state.filters.type);
   });
 }
 
 // ---------------------------------------------------------------------
-// Master view controller
+// Master view controller (Runs 100% in browser memory - 0ms delay)
 // ---------------------------------------------------------------------
-async function renderView() {
+function renderView() {
   const subjectsGrid = el("subjectsGrid");
   const subjectHeader = el("subjectHeader");
   const typeFilter = el("typeFilter");
   const empty = el("emptyState");
 
+  // Search Mode
   if (state.filters.q) {
     subjectsGrid.classList.add("hidden");
     subjectHeader.classList.add("hidden");
     typeFilter.classList.add("hidden");
-    const data = await api(`/api/papers?${new URLSearchParams({ q: state.filters.q })}`);
-    state.papers = data.papers;
+    const query = state.filters.q.toLowerCase();
+    state.papers = state.allPapers.filter((p) => {
+      return (
+        (p.title && p.title.toLowerCase().includes(query)) ||
+        (p.subject && p.subject.toLowerCase().includes(query)) ||
+        (p.code && p.code.toLowerCase().includes(query))
+      );
+    });
     renderPapers();
     return;
   }
 
+  // No semester chosen
   if (!state.filters.semester) {
     subjectsGrid.classList.add("hidden");
     subjectHeader.classList.add("hidden");
@@ -169,6 +222,7 @@ async function renderView() {
     return;
   }
 
+  // Semester chosen, no subject selected yet
   if (!state.subject) {
     subjectHeader.classList.add("hidden");
     typeFilter.classList.add("hidden");
@@ -178,13 +232,13 @@ async function renderView() {
     return;
   }
 
-  // Subject is selected -> Show Header and Type Buttons
+  // Subject chosen
   subjectsGrid.classList.add("hidden");
   subjectHeader.classList.remove("hidden");
   typeFilter.classList.remove("hidden");
   el("subjectHeaderTitle").textContent = state.subject;
 
-  // Agar koi category button click nahi kiya hai:
+  // No category chosen
   if (!state.filters.type) {
     state.papers = [];
     el("papersGrid").innerHTML = "";
@@ -195,7 +249,7 @@ async function renderView() {
     return;
   }
 
-  // Sirf selected category ke papers dikhenge
+  // Specific category selected
   state.papers = state.semesterPapers.filter((p) => {
     return p.subject === state.subject && p.type === state.filters.type;
   });
@@ -256,7 +310,7 @@ function renderSubjectsGrid() {
 }
 
 // ---------------------------------------------------------------------
-// Render the flat papers grid (WITH DIRECT SERVER DOWNLOAD)
+// Render the flat papers grid
 // ---------------------------------------------------------------------
 function renderPapers() {
   const grid = el("papersGrid");
@@ -291,13 +345,12 @@ function renderPapers() {
 
     card.innerHTML = `
       <span class="paper-tag" style="background:${tint};color:${accent}">
-        ${TYPE_SHORT[p.type] || state.types[p.type] || p.type}
+        ${TYPE_SHORT[p.type] || p.type}
       </span>
       <h3 class="paper-title">${escapeHtml(p.title)}</h3>
       <p class="paper-meta">${escapeHtml(p.subject)}${p.code ? ` · ${escapeHtml(p.code)}` : ""} · Semester ${p.semester}</p>
       <div class="paper-actions">
-        <!-- Direct Clean Server Download -->
-        <a href="/api/download/${p.id}" class="btn btn-outline">Download</a>
+        <a href="/api/download/${p.id}" target="_blank" class="btn btn-outline">Download</a>
         ${state.isAdmin ? `<button class="btn btn-outline" data-edit="${p.id}">Edit</button>` : ""}
         ${state.isAdmin ? `<button class="btn btn-danger" data-delete="${p.id}">Remove</button>` : ""}
       </div>
@@ -317,7 +370,7 @@ function renderPapers() {
 
 function escapeHtml(str) {
   const div = document.createElement("div");
-  div.textContent = str;
+  div.textContent = str || "";
   return div.innerHTML;
 }
 
@@ -325,9 +378,13 @@ function escapeHtml(str) {
 // Admin session
 // ---------------------------------------------------------------------
 async function checkSession() {
-  const data = await api("/api/session");
-  state.isAdmin = data.loggedIn;
-  updateAdminUI();
+  try {
+    const data = await api("/api/session");
+    state.isAdmin = Boolean(data.logged_in || data.loggedIn);
+    updateAdminUI();
+  } catch (e) {
+    state.isAdmin = false;
+  }
 }
 
 function updateAdminUI() {
@@ -337,25 +394,26 @@ function updateAdminUI() {
   renderView();
 }
 
-async function refreshCurrentSemester() {
+async function reloadData() {
+  await fetchAllPapers();
   if (state.filters.semester) {
-    await loadSemesterPapers(state.filters.semester);
+    state.semesterPapers = state.allPapers.filter((p) => p.semester === Number(state.filters.semester));
   }
-  await renderView();
+  renderView();
 }
 
 async function deletePaper(id) {
+  if (!confirm("Are you sure you want to remove this resource?")) return;
   try {
     await api(`/api/papers/${id}`, { method: "DELETE" });
-    await refreshCurrentSemester();
-    await loadStats();
+    await reloadData();
   } catch (err) {
-    console.error("Delete failed:", err.message);
+    alert("Delete failed: " + err.message);
   }
 }
 
 function openEditModal(id) {
-  const paper = state.papers.find((p) => String(p.id) === String(id));
+  const paper = state.allPapers.find((p) => String(p.id) === String(id));
   if (!paper) return;
   el("editPaperId").value = paper.id;
   el("editTitle").value = paper.title;
@@ -371,10 +429,10 @@ function openEditModal(id) {
 // Event bindings
 // ---------------------------------------------------------------------
 function bindEvents() {
-  el("searchInput").addEventListener("input", debounce((e) => {
+  el("searchInput").addEventListener("input", (e) => {
     state.filters.q = e.target.value.trim();
     renderView();
-  }, 300));
+  });
 
   el("adminBtn").addEventListener("click", () => openModal("loginModal"));
   el("uploadBtn").addEventListener("click", () => openModal("uploadModal"));
@@ -402,7 +460,7 @@ function bindEvents() {
     });
   });
 
-  // Screen par kahin bhi khali jagah click karne par category unselect
+  // Screen click to deselect category pill
   document.addEventListener("click", (e) => {
     if (state.subject && state.filters.type) {
       const isInsidePill = e.target.closest(".type-pill");
@@ -420,6 +478,7 @@ function bindEvents() {
     }
   });
 
+  // Login Form
   el("loginForm").addEventListener("submit", async (e) => {
     e.preventDefault();
     const email = el("loginEmail").value.trim();
@@ -430,7 +489,7 @@ function bindEvents() {
     try {
       await api("/api/login", {
         method: "POST",
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ username: email, email, password }),
       });
       state.isAdmin = true;
       closeModal("loginModal");
@@ -442,21 +501,28 @@ function bindEvents() {
     }
   });
 
+  // Upload Form
   el("uploadForm").addEventListener("submit", async (e) => {
     e.preventDefault();
     const errorEl = el("uploadError");
     errorEl.classList.add("hidden");
+
+    const submitBtn = el("uploadForm").querySelector("button[type=submit]");
+    const originalText = submitBtn.textContent;
+    submitBtn.textContent = "Uploading...";
+    submitBtn.disabled = true;
 
     const formData = new FormData();
     formData.append("title", el("uploadTitle").value.trim());
     formData.append("subject", el("uploadSubject").value.trim());
     formData.append("code", el("uploadCode").value.trim());
     formData.append("semester", el("uploadSemester").value);
-    formData.append("type", el("uploadType").value);
+    formData.append("paper_type", el("uploadType").value);
     formData.append("file", el("uploadFile").files[0]);
 
     try {
-      const res = await fetch("/api/upload", {
+      // Connects directly to /api/papers endpoint in app.py
+      const res = await fetch("/api/papers", {
         method: "POST",
         credentials: "same-origin",
         body: formData,
@@ -467,11 +533,13 @@ function bindEvents() {
       closeModal("uploadModal");
       el("uploadForm").reset();
       resetFileDropzone();
-      await refreshCurrentSemester();
-      await loadStats();
+      await reloadData();
     } catch (err) {
       errorEl.textContent = err.message;
       errorEl.classList.remove("hidden");
+    } finally {
+      submitBtn.textContent = originalText;
+      submitBtn.disabled = false;
     }
   });
 
@@ -486,6 +554,7 @@ function bindEvents() {
     el("filePreviewMeta").textContent = `${(file.size / (1024 * 1024)).toFixed(2)}MB · tap to replace`;
   });
 
+  // Edit Form
   el("editForm").addEventListener("submit", async (e) => {
     e.preventDefault();
     const errorEl = el("editError");
@@ -507,7 +576,7 @@ function bindEvents() {
       });
       closeModal("editModal");
       el("editForm").reset();
-      await refreshCurrentSemester();
+      await reloadData();
     } catch (err) {
       errorEl.textContent = err.message;
       errorEl.classList.remove("hidden");
@@ -524,27 +593,20 @@ function resetFileDropzone() {
 function openModal(id) { el(id).classList.remove("hidden"); }
 function closeModal(id) { el(id).classList.add("hidden"); }
 
-function debounce(fn, delay) {
-  let timer;
-  return (...args) => {
-    clearTimeout(timer);
-    timer = setTimeout(() => fn(...args), delay);
-  };
-}
-
 // ---------------------------------------------------------------------
-// Init
+// Instant Parallel Init
 // ---------------------------------------------------------------------
 (async function init() {
   bindEvents();
+  buildFilterUI();
   const loadingEl = el("loadingState");
-  loadingEl.classList.remove("hidden");
+  if (loadingEl) loadingEl.classList.remove("hidden");
+
+  // Load session & papers in parallel for maximum speed
   try {
-    await checkSession();
-    await loadMeta();
-    await renderView();
-    await loadStats();
+    await Promise.all([checkSession(), fetchAllPapers()]);
+    renderView();
   } finally {
-    loadingEl.classList.add("hidden");
+    if (loadingEl) loadingEl.classList.add("hidden");
   }
 })();

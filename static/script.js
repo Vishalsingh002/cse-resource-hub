@@ -112,7 +112,6 @@ function buildFilterUI() {
       const colorInfo = TYPE_COLORS[id];
       if (colorInfo) pill.style.setProperty("--pill-color", cssVar(colorInfo.css));
       pill.addEventListener("click", () => {
-        // Toggle: click again on same pill to unselect
         state.filters.type = state.filters.type === id ? "" : id;
         updateTypePillActive();
         renderView();
@@ -179,13 +178,11 @@ async function renderView() {
     return;
   }
 
-  // Subject is selected -> Show Header and Type Buttons
   subjectsGrid.classList.add("hidden");
   subjectHeader.classList.remove("hidden");
   typeFilter.classList.remove("hidden");
   el("subjectHeaderTitle").textContent = state.subject;
 
-  // Agar koi category button click nahi kiya hai:
   if (!state.filters.type) {
     state.papers = [];
     el("papersGrid").innerHTML = "";
@@ -196,7 +193,6 @@ async function renderView() {
     return;
   }
 
-  // Sirf selected type ke papers dikhenge
   state.papers = state.semesterPapers.filter((p) => {
     return p.subject === state.subject && p.type === state.filters.type;
   });
@@ -257,7 +253,7 @@ function renderSubjectsGrid() {
 }
 
 // ---------------------------------------------------------------------
-// Render the flat papers grid (WITH DIRECT ATTACHMENT DOWNLOAD)
+// Render the flat papers grid (WITH NATIVE BLOB DOWNLOAD)
 // ---------------------------------------------------------------------
 function renderPapers() {
   const grid = el("papersGrid");
@@ -290,12 +286,8 @@ function renderPapers() {
     card.className = "paper-card";
     card.style.setProperty("--card-accent", accent);
 
-    let fileUrl = p.filename.startsWith("http") ? p.filename : `/uploads/${encodeURIComponent(p.filename)}`;
-
-    // 👉 DIRECT DOWNLOAD: Cloudinary link me fl_attachment add karke direct download force karein
-    if (fileUrl.includes("res.cloudinary.com") && fileUrl.includes("/upload/")) {
-      fileUrl = fileUrl.replace("/upload/", "/upload/fl_attachment/");
-    }
+    const fileUrl = p.filename.startsWith("http") ? p.filename : `/uploads/${encodeURIComponent(p.filename)}`;
+    const downloadFileName = p.original_name || `${p.title}.pdf`;
 
     card.innerHTML = `
       <span class="paper-tag" style="background:${tint};color:${accent}">
@@ -304,12 +296,45 @@ function renderPapers() {
       <h3 class="paper-title">${escapeHtml(p.title)}</h3>
       <p class="paper-meta">${escapeHtml(p.subject)}${p.code ? ` · ${escapeHtml(p.code)}` : ""} · Semester ${p.semester}</p>
       <div class="paper-actions">
-        <a href="${fileUrl}" download target="_blank" class="btn btn-outline">Download</a>
+        <button type="button" class="btn btn-outline download-btn" data-url="${fileUrl}" data-name="${escapeHtml(downloadFileName)}">
+          Download
+        </button>
         ${state.isAdmin ? `<button class="btn btn-outline" data-edit="${p.id}">Edit</button>` : ""}
         ${state.isAdmin ? `<button class="btn btn-danger" data-delete="${p.id}">Remove</button>` : ""}
       </div>
     `;
     grid.appendChild(card);
+  });
+
+  // 👉 Direct File Download Handler
+  grid.querySelectorAll(".download-btn").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const url = btn.dataset.url;
+      const fileName = btn.dataset.name || "paper.pdf";
+      const originalText = btn.textContent;
+      btn.textContent = "Downloading...";
+      btn.disabled = true;
+
+      try {
+        const response = await fetch(url);
+        if (!response.ok) throw new Error("Network error");
+        const blob = await response.blob();
+        const blobUrl = window.URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = blobUrl;
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => window.URL.revokeObjectURL(blobUrl), 1000);
+      } catch (err) {
+        // Fallback: Agar fetch fail ho toh normal window open karein
+        window.open(url, "_blank");
+      } finally {
+        btn.textContent = originalText;
+        btn.disabled = false;
+      }
+    });
   });
 
   if (state.isAdmin) {
@@ -409,7 +434,7 @@ function bindEvents() {
     });
   });
 
-  // 👉 Screen par kahin bhi khali jagah click karne par category unselect
+  // Screen par kahin bhi click karne par category unselect
   document.addEventListener("click", (e) => {
     if (state.subject && state.filters.type) {
       const isInsidePill = e.target.closest(".type-pill");

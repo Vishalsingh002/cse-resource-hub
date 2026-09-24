@@ -1,29 +1,23 @@
 const DEFAULT_TYPES = {
-  pyq: "Previous Year (PYQ)",
   mid: "Mid-Term",
   mft: "MFT",
   ent: "End-Term",
-  notes: "Notes",
   syl: "Syllabus",
   tut: "Tutorial",
 };
 
 const TYPE_SHORT = {
-  pyq: "PYQ",
   mid: "MID",
   mft: "MFT",
   ent: "END",
-  notes: "NOTES",
   syl: "SYL",
   tut: "TUTORIAL",
 };
 
 const TYPE_COLORS = {
-  pyq: { css: "--pyq-color", tintCss: "--pyq-tint" },
   mid: { css: "--mid-color", tintCss: "--mid-tint" },
   mft: { css: "--mft-color", tintCss: "--mft-tint" },
   ent: { css: "--end-color", tintCss: "--end-tint" },
-  notes: { css: "--notes-color", tintCss: "--notes-tint" },
   syl: { css: "--syl-color", tintCss: "--syl-tint" },
   tut: { css: "--assign-color", tintCss: "--assign-tint" },
 };

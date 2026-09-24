@@ -257,7 +257,7 @@ function renderSubjectsGrid() {
 }
 
 // ---------------------------------------------------------------------
-// Render the flat papers grid
+// Render the flat papers grid (WITH DIRECT ATTACHMENT DOWNLOAD)
 // ---------------------------------------------------------------------
 function renderPapers() {
   const grid = el("papersGrid");
@@ -290,7 +290,12 @@ function renderPapers() {
     card.className = "paper-card";
     card.style.setProperty("--card-accent", accent);
 
-    const fileUrl = p.filename.startsWith("http") ? p.filename : `/uploads/${encodeURIComponent(p.filename)}`;
+    let fileUrl = p.filename.startsWith("http") ? p.filename : `/uploads/${encodeURIComponent(p.filename)}`;
+
+    // 👉 DIRECT DOWNLOAD: Cloudinary link me fl_attachment add karke direct download force karein
+    if (fileUrl.includes("res.cloudinary.com") && fileUrl.includes("/upload/")) {
+      fileUrl = fileUrl.replace("/upload/", "/upload/fl_attachment/");
+    }
 
     card.innerHTML = `
       <span class="paper-tag" style="background:${tint};color:${accent}">
@@ -299,7 +304,7 @@ function renderPapers() {
       <h3 class="paper-title">${escapeHtml(p.title)}</h3>
       <p class="paper-meta">${escapeHtml(p.subject)}${p.code ? ` · ${escapeHtml(p.code)}` : ""} · Semester ${p.semester}</p>
       <div class="paper-actions">
-        <a href="${fileUrl}" target="_blank" class="btn btn-outline">Download</a>
+        <a href="${fileUrl}" download target="_blank" class="btn btn-outline">Download</a>
         ${state.isAdmin ? `<button class="btn btn-outline" data-edit="${p.id}">Edit</button>` : ""}
         ${state.isAdmin ? `<button class="btn btn-danger" data-delete="${p.id}">Remove</button>` : ""}
       </div>
@@ -404,7 +409,7 @@ function bindEvents() {
     });
   });
 
-  // 👉 NAYA FEATURE: Screen par kahin bhi khali jagah click karne par option reset ho jayega
+  // 👉 Screen par kahin bhi khali jagah click karne par category unselect
   document.addEventListener("click", (e) => {
     if (state.subject && state.filters.type) {
       const isInsidePill = e.target.closest(".type-pill");
@@ -414,7 +419,6 @@ function bindEvents() {
       const isInsideControls = e.target.closest(".controls-row");
       const isInsideHero = e.target.closest(".hero");
 
-      // Agar button ya card ke bahar screen par kahin bhi click hua
       if (!isInsidePill && !isInsidePaper && !isInsideModal && !isInsideHeader && !isInsideControls && !isInsideHero) {
         state.filters.type = "";
         updateTypePillActive();

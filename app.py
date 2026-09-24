@@ -492,6 +492,7 @@ def delete_paper(paper_id):
 
 
 # 👉 NAYA DIRECT DOWNLOAD ROUTE (Poori file download hogi bina corrupt huye)
+# 👉 DIRECT DOWNLOAD (Ab seedha download hoga, browser me open nahi hoga)
 @app.route("/api/download/<int:paper_id>")
 def download_paper(paper_id):
     db = get_db()
@@ -507,9 +508,11 @@ def download_paper(paper_id):
         pass
 
     file_url = paper["filename"]
-    
-    # Direct Cloudinary se instant download (0 second delay, no Vercel hang)
+
     if file_url.startswith("http://") or file_url.startswith("https://"):
+        # 👇 Yeh line Cloudinary ko bolti hai ki browser me open mat karo, seedha download karo:
+        if "/upload/" in file_url and "fl_attachment" not in file_url:
+            file_url = file_url.replace("/upload/", "/upload/fl_attachment/")
         return redirect(file_url)
 
     return send_from_directory(UPLOAD_DIR, file_url, as_attachment=True)

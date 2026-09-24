@@ -57,9 +57,9 @@ async function api(path, options = {}) {
   return data;
 }
 
-// Normalize paper objects to ensure type/paper_type compatibility
+// Normalize paper objects
 function normalizePaper(p) {
-  const rawType = (p.paper_type || p.type || "pyq").toLowerCase();
+  const rawType = (p.type || p.paper_type || "pyq").toLowerCase();
   let typeKey = "pyq";
   if (rawType.includes("mid")) typeKey = "mid";
   else if (rawType.includes("end") || rawType.includes("ent")) typeKey = "ent";
@@ -127,7 +127,6 @@ function buildFilterUI() {
         updateSemTabActive();
         updateTypePillActive();
 
-        // Instant local filter without network request!
         if (newSem) {
           state.semesterPapers = state.allPapers.filter((p) => p.semester === Number(newSem));
         } else {
@@ -183,7 +182,7 @@ function updateTypePillActive() {
 }
 
 // ---------------------------------------------------------------------
-// Master view controller (Runs 100% in browser memory - 0ms delay)
+// Master view controller
 // ---------------------------------------------------------------------
 function renderView() {
   const subjectsGrid = el("subjectsGrid");
@@ -191,7 +190,6 @@ function renderView() {
   const typeFilter = el("typeFilter");
   const empty = el("emptyState");
 
-  // Search Mode
   if (state.filters.q) {
     subjectsGrid.classList.add("hidden");
     subjectHeader.classList.add("hidden");
@@ -208,7 +206,6 @@ function renderView() {
     return;
   }
 
-  // No semester chosen
   if (!state.filters.semester) {
     subjectsGrid.classList.add("hidden");
     subjectHeader.classList.add("hidden");
@@ -222,7 +219,6 @@ function renderView() {
     return;
   }
 
-  // Semester chosen, no subject selected yet
   if (!state.subject) {
     subjectHeader.classList.add("hidden");
     typeFilter.classList.add("hidden");
@@ -232,13 +228,11 @@ function renderView() {
     return;
   }
 
-  // Subject chosen
   subjectsGrid.classList.add("hidden");
   subjectHeader.classList.remove("hidden");
   typeFilter.classList.remove("hidden");
   el("subjectHeaderTitle").textContent = state.subject;
 
-  // No category chosen
   if (!state.filters.type) {
     state.papers = [];
     el("papersGrid").innerHTML = "";
@@ -249,7 +243,6 @@ function renderView() {
     return;
   }
 
-  // Specific category selected
   state.papers = state.semesterPapers.filter((p) => {
     return p.subject === state.subject && p.type === state.filters.type;
   });
@@ -310,7 +303,7 @@ function renderSubjectsGrid() {
 }
 
 // ---------------------------------------------------------------------
-// Render the flat papers grid
+// Render the flat papers grid (DIRECT DOWNLOAD)
 // ---------------------------------------------------------------------
 function renderPapers() {
   const grid = el("papersGrid");
@@ -350,7 +343,8 @@ function renderPapers() {
       <h3 class="paper-title">${escapeHtml(p.title)}</h3>
       <p class="paper-meta">${escapeHtml(p.subject)}${p.code ? ` · ${escapeHtml(p.code)}` : ""} · Semester ${p.semester}</p>
       <div class="paper-actions">
-        <a href="/api/download/${p.id}" target="_blank" class="btn btn-outline">Download</a>
+        <!-- Direct File Download Attribute Added -->
+        <a href="/api/download/${p.id}" download class="btn btn-outline">Download</a>
         ${state.isAdmin ? `<button class="btn btn-outline" data-edit="${p.id}">Edit</button>` : ""}
         ${state.isAdmin ? `<button class="btn btn-danger" data-delete="${p.id}">Remove</button>` : ""}
       </div>
@@ -388,9 +382,9 @@ async function checkSession() {
 }
 
 function updateAdminUI() {
-  el("adminPill").classList.toggle("hidden", !state.isAdmin);
-  el("adminBtn").classList.toggle("hidden", state.isAdmin);
-  el("uploadBtn").classList.toggle("hidden", !state.isAdmin);
+  if (el("adminPill")) el("adminPill").classList.toggle("hidden", !state.isAdmin);
+  if (el("adminBtn")) el("adminBtn").classList.toggle("hidden", state.isAdmin);
+  if (el("uploadBtn")) el("uploadBtn").classList.toggle("hidden", !state.isAdmin);
   renderView();
 }
 
@@ -489,7 +483,7 @@ function bindEvents() {
     try {
       await api("/api/login", {
         method: "POST",
-        body: JSON.stringify({ username: email, email, password }),
+        body: JSON.stringify({ email, password }),
       });
       state.isAdmin = true;
       closeModal("loginModal");
@@ -501,7 +495,7 @@ function bindEvents() {
     }
   });
 
-  // Upload Form
+  // Upload Form (Pointing to /api/upload)
   el("uploadForm").addEventListener("submit", async (e) => {
     e.preventDefault();
     const errorEl = el("uploadError");
@@ -517,12 +511,11 @@ function bindEvents() {
     formData.append("subject", el("uploadSubject").value.trim());
     formData.append("code", el("uploadCode").value.trim());
     formData.append("semester", el("uploadSemester").value);
-    formData.append("paper_type", el("uploadType").value);
+    formData.append("type", el("uploadType").value);
     formData.append("file", el("uploadFile").files[0]);
 
     try {
-      // Connects directly to /api/papers endpoint in app.py
-      const res = await fetch("/api/papers", {
+      const res = await fetch("/api/upload", {
         method: "POST",
         credentials: "same-origin",
         body: formData,
@@ -602,7 +595,6 @@ function closeModal(id) { el(id).classList.add("hidden"); }
   const loadingEl = el("loadingState");
   if (loadingEl) loadingEl.classList.remove("hidden");
 
-  // Load session & papers in parallel for maximum speed
   try {
     await Promise.all([checkSession(), fetchAllPapers()]);
     renderView();

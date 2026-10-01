@@ -298,13 +298,11 @@ function updatePendingBadge() {
 function renderFolderDirectory() {
   const listEl = el("folderTreeList");
   const breadcrumbEl = el("folderBreadcrumb");
-  const upBtn = el("folderUpBtn");
   if (!listEl || !breadcrumbEl) return;
 
   listEl.innerHTML = "";
 
   if (state.folderLevel === "root") {
-    if (upBtn) upBtn.classList.add("hidden");
     breadcrumbEl.innerHTML = `<span class="crumb-active">pyqs</span>`;
 
     state.branches.forEach((b) => {
@@ -331,7 +329,6 @@ function renderFolderDirectory() {
     });
 
   } else if (state.folderLevel === "branch") {
-    if (upBtn) upBtn.classList.remove("hidden");
     const b = state.folderBranch;
     breadcrumbEl.innerHTML = `
       <span class="crumb-link" onclick="goToFolderLevel('root')">pyqs</span>
@@ -364,7 +361,6 @@ function renderFolderDirectory() {
     });
 
   } else if (state.folderLevel === "semester") {
-    if (upBtn) upBtn.classList.remove("hidden");
     const b = state.folderBranch;
     const s = state.folderSem;
     breadcrumbEl.innerHTML = `
@@ -929,10 +925,6 @@ window.openUploadForContext = function(branchCode, semesterNum) {
 // Event Bindings
 // ---------------------------------------------------------------------
 function bindEvents() {
-  // Folder Up Button
-  const folderUpBtn = el("folderUpBtn");
-  if (folderUpBtn) folderUpBtn.addEventListener("click", handleFolderUp);
-
   // Live Search Input
   const searchInput = el("searchInput");
   if (searchInput) {

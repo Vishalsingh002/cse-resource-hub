@@ -62,20 +62,326 @@ const BRANCH_ICONS = {
   bpharma: "💊",
 };
 
+// =====================================================================
+// Quantum University Academic Departments & Programs Architecture
+// (Faithfully modeled after Quantum University Official Program Structure)
+// =====================================================================
+const DEPARTMENTS = [
+  {
+    id: "engineering",
+    name: "ENGINEERING",
+    icon: "💻",
+    branches: [
+      { id: "cse", code: "B.TECH CSE", name: "Computer Science & Engineering", semesters: 8, aliases: ["cse", "cs", "computer science"] },
+      { id: "cys", code: "B.TECH CYS", name: "Cyber Security and Digital Forensics", semesters: 8, aliases: ["cys", "cyber", "cse", "cs"] },
+      { id: "aiml", code: "B.TECH AI & ML", name: "AI & ML in Collaboration with Samatrix", semesters: 8, aliases: ["aiml", "ai & ml", "ai", "ml", "cse", "cs"] },
+      { id: "cloud", code: "B.TECH CLOUD", name: "Cloud Computing and Virtualization", semesters: 8, aliases: ["cloud", "cse", "cs"] },
+      { id: "fullstack", code: "B.TECH FULL STACK", name: "Full Stack Development with inurture", semesters: 8, aliases: ["full stack", "fullstack", "cse", "cs"] },
+      { id: "ds", code: "B.TECH DATA SCIENCE", name: "AI & Data Science", semesters: 8, aliases: ["ds", "data science", "cse", "cs"] },
+      { id: "robotics", code: "B.TECH AI & ROBOTICS", name: "AI & Robotics", semesters: 8, aliases: ["robotics", "ai & robotics", "cse", "cs"] },
+      { id: "me", code: "B.TECH ME", name: "Mechanical Engineering with L&T", semesters: 8, aliases: ["me", "mechanical"] },
+      { id: "ce", code: "B.TECH CIVIL", name: "Civil Engineering with L&T", semesters: 8, aliases: ["ce", "civil"] },
+      { id: "ece", code: "B.TECH ECE", name: "ECE (Semiconductors) with L&T", semesters: 8, aliases: ["ece", "electronics"] },
+      { id: "ee", code: "B.TECH EE", name: "Electrical Engineering", semesters: 8, aliases: ["ee", "electrical"] },
+    ]
+  },
+  {
+    id: "computer_app",
+    name: "COMPUTER APPLICATION",
+    icon: "📱",
+    branches: [
+      { id: "bca", code: "BCA", name: "Bachelor of Computer Applications", semesters: 6, aliases: ["bca"] },
+      { id: "bca_mobile", code: "BCA (HONS) MOBILE APP", name: "BCA (Hons.) Mobile App Development", semesters: 6, aliases: ["bca", "mobile app"] },
+      { id: "bca_iot", code: "BCA - IOT", name: "BCA - Internet of Things (IoT)", semesters: 6, aliases: ["bca", "iot"] },
+      { id: "bca_aiml", code: "BCA - AI/ML", name: "BCA - AI/ML", semesters: 6, aliases: ["bca", "ai/ml", "aiml"] },
+      { id: "mca", code: "MCA", name: "Master of Computer Applications", semesters: 4, aliases: ["mca"] },
+    ]
+  },
+  {
+    id: "diploma",
+    name: "DIPLOMA",
+    icon: "🏗️",
+    branches: [
+      { id: "dip_cse", code: "DIPLOMA CSE", name: "Computer Science & Engineering", semesters: 6, aliases: ["diploma cse", "dip cse"] },
+      { id: "dip_me", code: "DIPLOMA ME", name: "Mechanical Engineering", semesters: 6, aliases: ["diploma me", "dip me"] },
+      { id: "dip_ce", code: "DIPLOMA CIVIL", name: "Civil Engineering", semesters: 6, aliases: ["diploma civil", "dip civil"] },
+      { id: "dip_ee", code: "DIPLOMA EE", name: "Electrical Engineering", semesters: 6, aliases: ["diploma ee", "dip ee"] },
+    ]
+  },
+  {
+    id: "management",
+    name: "MANAGEMENT",
+    icon: "💼",
+    branches: [
+      { id: "bba", code: "BBA", name: "Bachelor of Business Administration", semesters: 6, aliases: ["bba"] },
+      { id: "bba_bi", code: "BBA (HONS) BUSINESS ANALYTICS", name: "BBA (Hons.) - Business Intelligence & Analytics", semesters: 6, aliases: ["bba", "business analytics"] },
+      { id: "bba_digital", code: "BBA DIGITAL MARKETING", name: "BBA - Digital Marketing", semesters: 6, aliases: ["bba", "digital marketing"] },
+      { id: "bba_trade", code: "BBA IMPORT & EXPORT", name: "BBA - Import & Export Management", semesters: 6, aliases: ["bba", "import export"] },
+      { id: "bba_retail", code: "BBA RETAIL & TOURISM", name: "BBA - Retail & Tourism", semesters: 6, aliases: ["bba", "retail", "tourism"] },
+      { id: "bba_hospital", code: "BBA HOSPITAL MANAGEMENT", name: "BBA - Hospital Management", semesters: 6, aliases: ["bba", "hospital management"] },
+      { id: "mba", code: "MBA", name: "Master of Business Administration", semesters: 4, aliases: ["mba"] },
+    ]
+  },
+  {
+    id: "commerce",
+    name: "COMMERCE & FINANCE",
+    icon: "📊",
+    branches: [
+      { id: "bcom", code: "B.COM (HONS)", name: "Bachelor of Commerce (Hons.)", semesters: 6, aliases: ["b.com", "bcom"] },
+      { id: "bcom_acca", code: "B.COM (HONS) ACCA", name: "B.Com (Hons.) Accounting & Taxation - ACCA UK", semesters: 6, aliases: ["acca", "bcom acca", "b.com"] },
+    ]
+  },
+  {
+    id: "sciences",
+    name: "SCIENCES",
+    icon: "🔬",
+    branches: [
+      { id: "bsc_physics", code: "B.SC (HONS) PHYSICS", name: "B.Sc (Hons.) Physics", semesters: 6, aliases: ["physics", "bsc physics"] },
+      { id: "bsc_maths", code: "B.SC (HONS) MATHEMATICS", name: "B.Sc (Hons.) Mathematics", semesters: 6, aliases: ["mathematics", "maths", "bsc maths"] },
+      { id: "bsc_chem", code: "B.SC (HONS) CHEMISTRY", name: "B.Sc (Hons.) Chemistry", semesters: 6, aliases: ["chemistry", "bsc chem"] },
+      { id: "bsc_cbz", code: "B.SC (HONS) CBZ", name: "B.Sc (Hons.) CBZ", semesters: 6, aliases: ["cbz", "bsc cbz"] },
+      { id: "bsc_biotech", code: "B.SC (HONS) BIOTECHNOLOGY", name: "B.Sc (Hons.) Biotechnology", semesters: 6, aliases: ["biotech", "biotechnology", "bsc biotech"] },
+    ]
+  },
+  {
+    id: "humanities",
+    name: "HUMANITIES & SOCIAL SCIENCES",
+    icon: "📚",
+    branches: [
+      { id: "ba_english", code: "B.A. (HONS) ENGLISH", name: "B.A. (Hons.) English", semesters: 6, aliases: ["ba english", "english"] },
+      { id: "ba_econ", code: "B.A. (HONS) ECONOMICS", name: "B.A. (Hons.) Economics", semesters: 6, aliases: ["ba economics", "economics"] },
+      { id: "ba_psych", code: "B.A. (HONS) PSYCHOLOGY", name: "B.A. (Hons.) Psychology", semesters: 6, aliases: ["ba psychology", "psychology"] },
+    ]
+  },
+  {
+    id: "agriculture",
+    name: "AGRICULTURAL STUDIES",
+    icon: "🌾",
+    branches: [
+      { id: "bsc_agri", code: "B.SC (HONS) AGRICULTURE", name: "B.Sc (Hons.) Agriculture", semesters: 8, aliases: ["agriculture", "agri", "bsc agriculture"] },
+    ]
+  },
+  {
+    id: "media",
+    name: "MEDIA STUDIES & DESIGN",
+    icon: "🎬",
+    branches: [
+      { id: "ba_journalism", code: "B.A. (HONS) JOURNALISM", name: "B.A. (Hons.) Journalism & Mass Comm", semesters: 6, aliases: ["journalism", "mass comm"] },
+      { id: "bsc_animation", code: "B.SC ANIMATION & VFX", name: "B.Sc - Animation & VFX", semesters: 6, aliases: ["animation", "vfx"] },
+    ]
+  },
+  {
+    id: "health",
+    name: "HEALTH SCIENCES",
+    icon: "💊",
+    branches: [
+      { id: "dpharma", code: "D.PHARMA", name: "Diploma in Pharmacy", semesters: 4, aliases: ["d.pharma", "dpharma"] },
+      { id: "bpharma", code: "B.PHARMA", name: "Bachelor of Pharmacy", semesters: 8, aliases: ["b.pharma", "bpharma"] },
+      { id: "bmlt", code: "BMLT", name: "Bachelor in Medical Laboratory Technology", semesters: 6, aliases: ["bmlt"] },
+      { id: "bmrit", code: "BMRIT", name: "B.Sc Medical Radiology & Imaging Technology", semesters: 6, aliases: ["bmrit"] },
+      { id: "bpt", code: "BPT", name: "Bachelor of Physiotherapy", semesters: 8, aliases: ["bpt", "physiotherapy"] },
+      { id: "bsc_optometry", code: "B.SC OPTOMETRY", name: "B.Sc (Optometry)", semesters: 6, aliases: ["optometry"] },
+      { id: "bsc_nutrition", code: "B.SC NUTRITION", name: "B.Sc (Nutrition and Dietetics)", semesters: 6, aliases: ["nutrition", "dietetics"] },
+    ]
+  },
+  {
+    id: "hospitality",
+    name: "HOSPITALITY & TOURISM",
+    icon: "🏨",
+    branches: [
+      { id: "bhm", code: "BHM", name: "BHM - Bachelors in Hotel Management", semesters: 8, aliases: ["bhm", "hotel management"] },
+      { id: "dip_hm", code: "DIPLOMA HM", name: "Diploma in Hotel Management", semesters: 4, aliases: ["diploma hotel management"] },
+      { id: "cert_hm", code: "CERTIFICATE HM", name: "Certificate in Hotel Management", semesters: 2, aliases: ["certificate hotel management"] },
+    ]
+  },
+  {
+    id: "law",
+    name: "LAW",
+    icon: "⚖️",
+    branches: [
+      { id: "ba_llb", code: "BA LLB (HONS)", name: "BA LLB (Hons)", semesters: 10, aliases: ["ba llb", "ballb"] },
+      { id: "bba_llb", code: "BBA LLB (HONS)", name: "BBA LLB (Hons)", semesters: 10, aliases: ["bba llb", "bballb"] },
+    ]
+  },
+];
+
+// Flattened list of all individual programs
 const DEFAULT_BRANCHES = [
   { id: "all", code: "ALL", name: "All Branches" },
-  { id: "cse", code: "B.TECH CSE", name: "Computer Science & Engineering" },
-  { id: "aiml", code: "B.TECH AI & ML", name: "Artificial Intelligence & ML" },
-  { id: "ds", code: "B.TECH DATA SCIENCE", name: "Data Science" },
-  { id: "cs", code: "B.TECH CYS", name: "Cyber Security" },
-  { id: "ece", code: "B.TECH ECE", name: "Electronics & Communication" },
-  { id: "me", code: "B.TECH ME", name: "Mechanical Engineering" },
-  { id: "ce", code: "B.TECH CIVIL", name: "Civil Engineering" },
-  { id: "bca", code: "BCA", name: "Bachelor of Computer Apps" },
-  { id: "mca", code: "MCA", name: "Master of Computer Apps" },
-  { id: "bba", code: "BBA", name: "Bachelor of Business Admin" },
-  { id: "bpharma", code: "B.PHARMA", name: "Bachelor of Pharmacy" },
+  ...DEPARTMENTS.flatMap((d) => d.branches.map((b) => ({ ...b, department: d.name })))
 ];
+
+// Standard University Subject Registry per Branch & Semester
+const CURRICULUM_REGISTRY = {
+  cse_core: {
+    1: ["Engineering Physics", "Engineering Mathematics - I", "Basic Electrical Engineering", "Programming for Problem Solving", "Technical Communication"],
+    2: ["Engineering Chemistry", "Engineering Mathematics - II", "Basic Electronics Engineering", "Engineering Mechanics", "Environmental Studies"],
+    3: ["Database Management System", "Discrete Design Structure", "Data Structure & Programming", "Digital Electronics", "Technical Skills Development-II", "Employability Skills II (Reasoning Ability)"],
+    4: ["Computer Network", "Operating Systems", "Theory of Automata & Formal Language", "Object Oriented Programming Language and System with Java", "Employability Skills I(Aptitude Abilities)", "Technical Skills Development-III", "Computer Network Lab"],
+    5: ["Design and Analysis of Algorithm", "Foundation of Cloud Computing", "Operating System", "R Programming", "Software Engineering"],
+    6: ["Machine Learning", "Web Technologies & Full Stack", "Computer Graphics", "Information & Cyber Security"],
+    7: ["Artificial Intelligence", "Deep Learning", "Compiler Design", "Cloud Architecture"],
+    8: ["Major Project", "Industrial Internship", "Seminar"]
+  },
+  me: {
+    1: ["Engineering Physics", "Engineering Mathematics - I", "Basic Electrical Engineering", "Engineering Graphics", "Technical English"],
+    2: ["Engineering Chemistry", "Engineering Mathematics - II", "Basic Electronics Engineering", "Engineering Mechanics", "Workshop Practice"],
+    3: ["Mechanics of Solids", "Material Science & Engineering", "Thermodynamics", "Fluid Mechanics", "Applied Mathematics - III"],
+    4: ["Applied Thermodynamics", "Manufacturing Processes", "Kinematics of Machines", "Instrumentation & Control"],
+    5: ["Heat and Mass Transfer", "Dynamics of Machines", "Design of Machine Elements", "Machine Drawing"],
+    6: ["Refrigeration and Air Conditioning", "IC Engines", "Fluid Machines", "CAD/CAM"],
+    7: ["Automobile Engineering", "Power Plant Engineering", "Mechatronics", "Operations Research"],
+    8: ["Major Project", "Industrial Training", "Viva-Voce"]
+  },
+  ce: {
+    1: ["Engineering Physics", "Engineering Mathematics - I", "Basic Electrical Engineering", "Engineering Graphics", "Technical English"],
+    2: ["Engineering Chemistry", "Engineering Mathematics - II", "Basic Electronics Engineering", "Engineering Mechanics", "Environmental Studies"],
+    3: ["Surveying", "Building Materials and Construction", "Mechanics of Solids", "Fluid Mechanics", "Engineering Geology"],
+    4: ["Structural Analysis - I", "Geotechnical Engineering - I", "Transportation Engineering - I", "Hydraulics & Hydraulic Machines"],
+    5: ["Design of Concrete Structures - I", "Environmental Engineering - I", "Structural Analysis - II", "Geotechnical Engineering - II"],
+    6: ["Design of Steel Structures", "Transportation Engineering - II", "Water Resources Engineering", "Construction Planning & Management"],
+    7: ["Design of Concrete Structures - II", "Estimation & Costing", "Bridge Engineering", "Earthquake Engineering"],
+    8: ["Major Project", "Professional Practice", "Internship"]
+  },
+  ece: {
+    1: ["Engineering Physics", "Engineering Mathematics - I", "Basic Electrical Engineering", "Programming for Problem Solving", "Technical English"],
+    2: ["Engineering Chemistry", "Engineering Mathematics - II", "Basic Electronics Engineering", "Engineering Mechanics", "Environmental Studies"],
+    3: ["Electronic Devices & Circuits", "Digital System Design", "Network Theory", "Signals and Systems", "Mathematics - III"],
+    4: ["Analog Circuits", "Microprocessors and Microcontrollers", "Electromagnetic Fields", "Communication Systems"],
+    5: ["Digital Signal Processing", "VLSI Design", "Control Systems", "Antenna and Wave Propagation"],
+    6: ["Microwave Engineering", "Wireless Communication", "Embedded Systems", "Optical Communication"],
+    7: ["Radar & Satellite Communication", "IoT Systems", "Digital Image Processing", "Machine Learning"],
+    8: ["Major Project", "Internship", "Seminar"]
+  },
+  ee: {
+    1: ["Engineering Physics", "Engineering Mathematics - I", "Basic Electrical Engineering", "Programming for Problem Solving", "Technical English"],
+    2: ["Engineering Chemistry", "Engineering Mathematics - II", "Basic Electronics Engineering", "Engineering Mechanics", "Environmental Studies"],
+    3: ["Electric Circuit Analysis", "Electrical Machines - I", "Analog Electronics", "Electromagnetic Fields"],
+    4: ["Electrical Machines - II", "Power Systems - I", "Digital Electronics", "Control Systems"],
+    5: ["Power Electronics", "Power Systems - II", "Microprocessors", "Electrical Measurements & Instrumentation"],
+    6: ["Power System Protection", "Electric Drives", "Renewable Energy Sources", "High Voltage Engineering"],
+    7: ["Utilization of Electrical Energy", "Power Quality", "Smart Grid", "Industrial Automation"],
+    8: ["Major Project", "Industrial Training"]
+  },
+  bca: {
+    1: ["Fundamentals of Computer & IT", "Programming in C", "Basic Mathematics", "English & Communication"],
+    2: ["Data Structures using C", "Digital Computer Fundamentals", "Discrete Mathematics", "Environmental Studies"],
+    3: ["Web Technologies", "Database Management Systems", "Object Oriented Programming in C++", "Computer Organization"],
+    4: ["Java Programming", "Operating Systems", "Software Engineering", "Computer Networks"],
+    5: ["Python Programming", "Mobile Application Development", "Information Security", "E-Commerce"],
+    6: ["Cloud Computing", "Artificial Intelligence", "Major Project", "Cyber Law & Ethics"]
+  },
+  bba: {
+    1: ["Principles of Management", "Business Economics", "Financial Accounting", "Business Communication"],
+    2: ["Organizational Behaviour", "Business Statistics", "Business Law", "Marketing Management"],
+    3: ["Human Resource Management", "Cost Accounting", "Management Information Systems", "Business Environment"],
+    4: ["Financial Management", "Research Methodology", "Operations Management", "Digital Marketing"],
+    5: ["Strategic Management", "International Business", "Business Analytics", "Consumer Behaviour"],
+    6: ["Entrepreneurship Development", "Business Ethics & CSR", "Project Report & Viva"]
+  },
+  bcom: {
+    1: ["Financial Accounting", "Business Law", "Micro Economics", "Business Organization & Management"],
+    2: ["Corporate Accounting", "Corporate Laws", "Macro Economics", "Business Statistics"],
+    3: ["Cost Accounting", "Income Tax Law & Practice", "Principles of Marketing", "Business Mathematics"],
+    4: ["Management Accounting", "Auditing & Corporate Governance", "Financial Markets", "Indian Economy"],
+    5: ["Financial Management", "Goods & Services Tax (GST)", "International Finance", "Banking Operations"],
+    6: ["E-Commerce", "Security Analysis & Portfolio Management", "Research Project"]
+  },
+  bpharma: {
+    1: ["Human Anatomy and Physiology - I", "Pharmaceutical Analysis - I", "Pharmaceutics - I", "Pharmaceutical Inorganic Chemistry"],
+    2: ["Human Anatomy and Physiology - II", "Pharmaceutical Organic Chemistry - I", "Biochemistry", "Pathophysiology"],
+    3: ["Pharmaceutical Organic Chemistry - II", "Physical Pharmaceutics - I", "Pharmaceutical Microbiology", "Pharmaceutical Engineering"],
+    4: ["Pharmaceutical Organic Chemistry - III", "Medicinal Chemistry - I", "Physical Pharmaceutics - II", "Pharmacology - I", "Pharmacognosy - I"],
+    5: ["Medicinal Chemistry - II", "Industrial Pharmacy - I", "Pharmacology - II", "Pharmacognosy - II"],
+    6: ["Medicinal Chemistry - III", "Pharmacology - III", "Herbal Drug Technology", "Biopharmaceutics"],
+    7: ["Instrumental Methods of Analysis", "Industrial Pharmacy - II", "Pharmacy Practice", "Novel Drug Delivery Systems"],
+    8: ["Biostatistics and Research", "Social and Preventive Pharmacy", "Project Work"]
+  },
+  law: {
+    1: ["General Principles of Contract - I", "Constitutional Law - I", "Law of Torts", "Legal Method"],
+    2: ["Special Contracts - II", "Constitutional Law - II", "Family Law - I", "Law of Crimes (IPC)"],
+    3: ["Family Law - II", "Jurisprudence (Legal Theory)", "Law of Evidence", "Civil Procedure Code"],
+    4: ["Criminal Procedure Code", "Administrative Law", "Property Law", "Company Law"],
+    5: ["Public International Law", "Labour & Industrial Law - I", "Environmental Law", "Human Rights Law"],
+    6: ["Labour & Industrial Law - II", "Taxation Law", "Intellectual Property Rights", "Alternative Dispute Resolution"],
+    7: ["Banking & Insurance Law", "Cyber Law", "Professional Ethics", "Drafting, Pleading & Conveyancing"],
+    8: ["Moot Court Exercise", "Internship", "Arbitration & Conciliation"],
+    9: ["Land Laws", "Competition Law", "Humanitarian & Refugee Law"],
+    10: ["Dissertation", "Legal Aid Clinic", "Viva-Voce"]
+  },
+  bsc_agri: {
+    1: ["Fundamentals of Agronomy", "Fundamentals of Genetics", "Fundamentals of Soil Science", "Fundamentals of Horticulture"],
+    2: ["Fundamentals of Agricultural Economics", "Agricultural Microbiology", "Soil and Water Conservation", "Plant Pathogens"],
+    3: ["Crop Production Technology - I (Kharif Crops)", "Agricultural Finance and Cooperation", "Farm Machinery and Power"],
+    4: ["Crop Production Technology - II (Rabi Crops)", "Production Technology for Vegetables and Spices", "Renewable Energy"],
+    5: ["Principles of Integrated Pest and Disease Management", "Manures, Fertilizers and Soil Fertility Management"],
+    6: ["Farming System & Sustainable Agriculture", "Post-harvest Management of Fruits and Vegetables"],
+    7: ["Rural Agricultural Work Experience (RAWE)", "Agro-industrial Attachment"],
+    8: ["Experiential Learning Programme (ELP)", "Commercial Agriculture Project"]
+  },
+  diploma: {
+    1: ["Applied Physics - I", "Applied Chemistry", "Applied Mathematics - I", "Communication Skills - I"],
+    2: ["Applied Physics - II", "Applied Mathematics - II", "Engineering Drawing", "General Workshop Practice"],
+    3: ["Applied Mechanics", "Basic Electrical & Electronics", "Fluid Mechanics", "Computer Applications"],
+    4: ["Manufacturing Technology", "Thermal Engineering", "Theory of Machines", "Strength of Materials"],
+    5: ["Industrial Management & Safety", "Design of Machine Elements", "Advanced Manufacturing"],
+    6: ["Major Project", "Industrial Training & Viva"]
+  }
+};
+
+function getCurriculumSubjects(branchObj, semesterNum) {
+  if (!branchObj) return [];
+  const bId = (branchObj.id || "").toLowerCase();
+  const bCode = (branchObj.code || "").toLowerCase();
+  const s = Number(semesterNum);
+
+  if (
+    bId === "cse" || bId === "cys" || bId === "aiml" || bId === "cloud" ||
+    bId === "fullstack" || bId === "ds" || bId === "robotics" ||
+    bCode.includes("cse") || bCode.includes("cys") || bCode.includes("data science")
+  ) {
+    return (CURRICULUM_REGISTRY.cse_core && CURRICULUM_REGISTRY.cse_core[s]) || [];
+  }
+  if (bId === "me" || bCode.includes("me") || bCode.includes("mechanical")) {
+    return (CURRICULUM_REGISTRY.me && CURRICULUM_REGISTRY.me[s]) || [];
+  }
+  if (bId === "ce" || bCode.includes("civil")) {
+    return (CURRICULUM_REGISTRY.ce && CURRICULUM_REGISTRY.ce[s]) || [];
+  }
+  if (bId === "ece" || bCode.includes("ece") || bCode.includes("electronics")) {
+    return (CURRICULUM_REGISTRY.ece && CURRICULUM_REGISTRY.ece[s]) || [];
+  }
+  if (bId === "ee" || bCode.includes("electrical")) {
+    return (CURRICULUM_REGISTRY.ee && CURRICULUM_REGISTRY.ee[s]) || [];
+  }
+  if (bId.startsWith("bca") || bCode.includes("bca")) {
+    return (CURRICULUM_REGISTRY.bca && CURRICULUM_REGISTRY.bca[s]) || [];
+  }
+  if (bId.startsWith("bba") || bCode.includes("bba")) {
+    return (CURRICULUM_REGISTRY.bba && CURRICULUM_REGISTRY.bba[s]) || [];
+  }
+  if (bId.startsWith("bcom") || bCode.includes("b.com")) {
+    return (CURRICULUM_REGISTRY.bcom && CURRICULUM_REGISTRY.bcom[s]) || [];
+  }
+  if (bId.includes("pharma") || bCode.includes("pharma")) {
+    return (CURRICULUM_REGISTRY.bpharma && CURRICULUM_REGISTRY.bpharma[s]) || [];
+  }
+  if (bId.includes("llb") || bCode.includes("llb") || bCode.includes("law")) {
+    return (CURRICULUM_REGISTRY.law && CURRICULUM_REGISTRY.law[s]) || [];
+  }
+  if (bId.includes("agri") || bCode.includes("agri")) {
+    return (CURRICULUM_REGISTRY.bsc_agri && CURRICULUM_REGISTRY.bsc_agri[s]) || [];
+  }
+  if (bId.startsWith("dip") || bCode.includes("diploma")) {
+    return (CURRICULUM_REGISTRY.diploma && CURRICULUM_REGISTRY.diploma[s]) || [];
+  }
+  return [];
+}
+
+function getDeptForBranch(branchObj) {
+  if (!branchObj) return null;
+  return DEPARTMENTS.find((d) => d.branches.some((b) => b.id === branchObj.id || b.code === branchObj.code)) || DEPARTMENTS[0];
+}
 
 const FOLDER_SVG = `
 <svg viewBox="0 0 24 24" width="22" height="22" fill="#EAB308" stroke="#CA8A04" stroke-width="0.5" style="flex-shrink:0; display:inline-block; vertical-align:middle;">
@@ -103,7 +409,8 @@ const state = {
   },
   subject: "",
   viewMode: "folders",  // default to folder directory mode (matching screenshot 5)
-  folderLevel: "root",  // "root", "branch", "semester", "subject", "category"
+  folderLevel: "root",  // "root", "dept", "branch", "semester", "subject", "category"
+  folderDept: null,
   folderBranch: null,
   folderSem: null,
   folderSubject: null,
@@ -159,7 +466,7 @@ async function api(path, options = {}) {
 }
 
 // ---------------------------------------------------------------------
-// Helper: Matches Branch
+// Helper: Matches Branch (with Specialization Aliases)
 // ---------------------------------------------------------------------
 function matchesBranch(paperBranch, branchObj) {
   if (!paperBranch || !branchObj) return false;
@@ -168,8 +475,22 @@ function matchesBranch(paperBranch, branchObj) {
   const bId = branchObj.id.toLowerCase().trim();
   const bCode = (branchObj.code || "").toLowerCase().trim();
   const bName = (branchObj.name || "").toLowerCase().trim();
+
+  // 1. Direct equality
+  if (pb === bId || pb === bCode || pb === bName) return true;
+
+  // 2. Check branch aliases (e.g. Cyber Security & AI/ML inherit core CSE papers)
+  if (branchObj.aliases && branchObj.aliases.length > 0) {
+    if (branchObj.aliases.some((a) => {
+      const al = a.toLowerCase().trim();
+      return pb === al || pb.includes(al) || al.includes(pb);
+    })) {
+      return true;
+    }
+  }
+
+  // 3. Fallback partial matching
   return (
-    pb === bId ||
     bCode.includes(pb) ||
     pb.includes(bCode) ||
     bName.includes(pb) ||
@@ -307,7 +628,7 @@ function updateStats() {
   ).size;
 
   if (el("statPapers")) el("statPapers").textContent = totalPapers;
-  if (el("statBranches")) el("statBranches").textContent = Math.max(activeBranches, 1);
+  if (el("statBranches")) el("statBranches").textContent = DEPARTMENTS.length;
   if (el("statContributors")) el("statContributors").textContent = Math.max(uniqueContributors, 1);
 
   // Update dynamic footer timestamp
@@ -339,7 +660,7 @@ function updatePendingBadge() {
 }
 
 // ---------------------------------------------------------------------
-// Folder Directory Explorer (Matching Screenshot 5: ↑ pyqs)
+// Folder Directory Explorer (Faithfully Structured per University Faculties)
 // ---------------------------------------------------------------------
 function renderFolderDirectory() {
   const listEl = el("folderTreeList");
@@ -351,15 +672,48 @@ function renderFolderDirectory() {
   if (state.folderLevel === "root") {
     breadcrumbEl.innerHTML = `<span class="crumb-active">pyqs</span>`;
 
-    state.branches.forEach((b) => {
-      if (b.id === "all") return;
+    DEPARTMENTS.forEach((dept) => {
+      // Calculate total files in this department across all its branches
+      const deptPapersCount = state.allPapers.filter((p) =>
+        dept.branches.some((b) => matchesBranch(p.branch, b))
+      ).length;
+
+      const row = document.createElement("div");
+      row.className = "folder-row-item";
+      row.innerHTML = `
+        <div class="folder-left-content">
+          ${FOLDER_SVG}
+          <span class="folder-name-text">${escapeHtml(dept.name)}</span>
+        </div>
+        <div class="folder-right-content">
+          <span class="folder-file-count">${dept.branches.length} ${dept.branches.length === 1 ? 'program' : 'programs'} &bull; ${deptPapersCount} ${deptPapersCount === 1 ? 'file' : 'files'}</span>
+          <span class="folder-row-chevron">&rsaquo;</span>
+        </div>
+      `;
+      row.addEventListener("click", () => {
+        state.folderLevel = "dept";
+        state.folderDept = dept;
+        renderFolderDirectory();
+      });
+      listEl.appendChild(row);
+    });
+
+  } else if (state.folderLevel === "dept") {
+    const dept = state.folderDept || DEPARTMENTS[0];
+    breadcrumbEl.innerHTML = `
+      <span class="crumb-link" onclick="goToFolderLevel('root')">pyqs</span>
+      <span style="color:#71717A;margin:0 4px;">/</span>
+      <span class="crumb-active">${escapeHtml(dept.name)}</span>
+    `;
+
+    dept.branches.forEach((b) => {
       const count = state.allPapers.filter((p) => matchesBranch(p.branch, b)).length;
       const row = document.createElement("div");
       row.className = "folder-row-item";
       row.innerHTML = `
         <div class="folder-left-content">
           ${FOLDER_SVG}
-          <span class="folder-name-text">${escapeHtml(b.code || b.name.toUpperCase())}</span>
+          <span class="folder-name-text">${escapeHtml(b.code || b.name)}</span>
         </div>
         <div class="folder-right-content">
           <span class="folder-file-count">${count} ${count === 1 ? 'file' : 'files'}</span>
@@ -376,13 +730,18 @@ function renderFolderDirectory() {
 
   } else if (state.folderLevel === "branch") {
     const b = state.folderBranch;
+    const dept = state.folderDept || getDeptForBranch(b);
     breadcrumbEl.innerHTML = `
       <span class="crumb-link" onclick="goToFolderLevel('root')">pyqs</span>
       <span style="color:#71717A;margin:0 4px;">/</span>
+      ${dept ? `<span class="crumb-link" onclick="goToFolderLevel('dept')">${escapeHtml(dept.name)}</span><span style="color:#71717A;margin:0 4px;">/</span>` : ""}
       <span class="crumb-active">${escapeHtml(b.code || b.name)}</span>
     `;
 
-    state.semesters.forEach((s) => {
+    const totalSemesters = b.semesters || 8;
+    const semList = Array.from({ length: totalSemesters }, (_, i) => i + 1);
+
+    semList.forEach((s) => {
       const count = state.allPapers.filter(
         (p) => matchesBranch(p.branch, b) && Number(p.semester) === Number(s)
       ).length;
@@ -409,9 +768,11 @@ function renderFolderDirectory() {
   } else if (state.folderLevel === "semester") {
     const b = state.folderBranch;
     const s = state.folderSem;
+    const dept = state.folderDept || getDeptForBranch(b);
     breadcrumbEl.innerHTML = `
       <span class="crumb-link" onclick="goToFolderLevel('root')">pyqs</span>
       <span style="color:#71717A;margin:0 4px;">/</span>
+      ${dept ? `<span class="crumb-link" onclick="goToFolderLevel('dept')">${escapeHtml(dept.name)}</span><span style="color:#71717A;margin:0 4px;">/</span>` : ""}
       <span class="crumb-link" onclick="goToFolderLevel('branch')">${escapeHtml(b.code || b.name)}</span>
       <span style="color:#71717A;margin:0 4px;">/</span>
       <span class="crumb-active">SEMESTER ${s}</span>
@@ -423,6 +784,14 @@ function renderFolderDirectory() {
 
     // Group papers by unique subject names
     const subjectsMap = new Map();
+
+    // 1. Add curriculum subjects for this branch and semester
+    const curriculumSubjects = getCurriculumSubjects(b, s);
+    curriculumSubjects.forEach((subj) => {
+      subjectsMap.set(subj.toLowerCase(), { name: subj, count: 0 });
+    });
+
+    // 2. Merge uploaded papers from database
     semPapers.forEach((p) => {
       const subj = (p.subject || "").trim();
       if (!subj) return;
@@ -444,7 +813,8 @@ function renderFolderDirectory() {
       `;
       listEl.appendChild(emptyRow);
     } else {
-      subjectsList.sort((a, b) => a.name.localeCompare(b.name)).forEach((sub) => {
+      // Sort subjects: subjects with files first, then alphabetically
+      subjectsList.sort((x, y) => (y.count - x.count) || x.name.localeCompare(y.name)).forEach((sub) => {
         const row = document.createElement("div");
         row.className = "folder-row-item";
         row.innerHTML = `
@@ -470,10 +840,12 @@ function renderFolderDirectory() {
     const b = state.folderBranch;
     const s = state.folderSem;
     const subj = state.folderSubject;
+    const dept = state.folderDept || getDeptForBranch(b);
 
     breadcrumbEl.innerHTML = `
       <span class="crumb-link" onclick="goToFolderLevel('root')">pyqs</span>
       <span style="color:#71717A;margin:0 4px;">/</span>
+      ${dept ? `<span class="crumb-link" onclick="goToFolderLevel('dept')">${escapeHtml(dept.name)}</span><span style="color:#71717A;margin:0 4px;">/</span>` : ""}
       <span class="crumb-link" onclick="goToFolderLevel('branch')">${escapeHtml(b.code || b.name)}</span>
       <span style="color:#71717A;margin:0 4px;">/</span>
       <span class="crumb-link" onclick="goToFolderLevel('semester')">SEMESTER ${s}</span>
@@ -491,7 +863,8 @@ function renderFolderDirectory() {
       const emptyRow = document.createElement("div");
       emptyRow.className = "folder-empty-row";
       emptyRow.innerHTML = `
-        <div>📁 No files found for <strong>${escapeHtml(subj)}</strong>.</div>
+        <div>📁 No files uploaded yet for <strong>${escapeHtml(subj)}</strong>.</div>
+        <p style="font-size:12px;color:var(--text-muted);margin:0;">Be the first student to upload a question paper or notes for this subject.</p>
         <button class="btn-contribute-mini" onclick="openUploadForContext('${escapeHtml(b.code)}', ${s}, '${escapeHtml(subj)}')">+ Contribute Paper for this Subject</button>
       `;
       listEl.appendChild(emptyRow);
@@ -568,10 +941,12 @@ function renderFolderDirectory() {
     const subj = state.folderSubject;
     const catKey = state.folderCategoryKey;
     const catName = state.folderCategoryName;
+    const dept = state.folderDept || getDeptForBranch(b);
 
     breadcrumbEl.innerHTML = `
       <span class="crumb-link" onclick="goToFolderLevel('root')">pyqs</span>
       <span style="color:#71717A;margin:0 4px;">/</span>
+      ${dept ? `<span class="crumb-link" onclick="goToFolderLevel('dept')">${escapeHtml(dept.name)}</span><span style="color:#71717A;margin:0 4px;">/</span>` : ""}
       <span class="crumb-link" onclick="goToFolderLevel('branch')">${escapeHtml(b.code || b.name)}</span>
       <span style="color:#71717A;margin:0 4px;">/</span>
       <span class="crumb-link" onclick="goToFolderLevel('semester')">SEMESTER ${s}</span>
@@ -615,6 +990,14 @@ function renderFolderDirectory() {
 window.goToFolderLevel = function(level) {
   if (level === "root") {
     state.folderLevel = "root";
+    state.folderDept = null;
+    state.folderBranch = null;
+    state.folderSem = null;
+    state.folderSubject = null;
+    state.folderCategoryKey = null;
+    state.folderCategoryName = null;
+  } else if (level === "dept") {
+    state.folderLevel = "dept";
     state.folderBranch = null;
     state.folderSem = null;
     state.folderSubject = null;
@@ -656,7 +1039,15 @@ function handleFolderUp() {
     state.folderCategoryKey = null;
     state.folderCategoryName = null;
   } else if (state.folderLevel === "branch") {
+    state.folderLevel = "dept";
+    state.folderBranch = null;
+    state.folderSem = null;
+    state.folderSubject = null;
+    state.folderCategoryKey = null;
+    state.folderCategoryName = null;
+  } else if (state.folderLevel === "dept") {
     state.folderLevel = "root";
+    state.folderDept = null;
     state.folderBranch = null;
     state.folderSem = null;
     state.folderSubject = null;
@@ -829,11 +1220,17 @@ function buildFilterUI() {
   const editTypeSelect = el("editType");
 
   if (uploadBranchSelect && uploadBranchSelect.children.length === 0) {
-    state.branches.forEach((b) => {
-      if (b.id !== "all") {
-        if (uploadBranchSelect) uploadBranchSelect.add(new Option(`${b.code} — ${b.name}`, b.code));
-        if (editBranchSelect) editBranchSelect.add(new Option(`${b.code} — ${b.name}`, b.code));
-      }
+    DEPARTMENTS.forEach((dept) => {
+      const g1 = document.createElement("optgroup");
+      g1.label = dept.name;
+      const g2 = document.createElement("optgroup");
+      g2.label = dept.name;
+      dept.branches.forEach((b) => {
+        g1.appendChild(new Option(`${b.code} — ${b.name}`, b.code));
+        g2.appendChild(new Option(`${b.code} — ${b.name}`, b.code));
+      });
+      uploadBranchSelect.appendChild(g1);
+      if (editBranchSelect) editBranchSelect.appendChild(g2);
     });
   }
 

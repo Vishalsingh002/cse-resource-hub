@@ -770,5 +770,5 @@ with app.app_context():
     init_db()
 
 if __name__ == "__main__":
-    debug_mode = os.environ.get("FLASK_DEBUG", "1") == "1"
-    app.run(debug=debug_mode, port=5000)
+    # debug=False and use_reloader=False completely prevents Windows Python 3.12 WinError 10038 socket warnings
+    app.run(debug=False, use_reloader=False, port=5000)

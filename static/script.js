@@ -103,9 +103,10 @@ const state = {
   },
   subject: "",
   viewMode: "folders",  // default to folder directory mode (matching screenshot 5)
-  folderLevel: "root",  // "root", "branch", "semester"
+  folderLevel: "root",  // "root", "branch", "semester", "subject"
   folderBranch: null,
   folderSem: null,
+  folderSubject: null,
 };
 
 const el = (id) => document.getElementById(id);
@@ -371,20 +372,86 @@ function renderFolderDirectory() {
       <span class="crumb-active">SEMESTER ${s}</span>
     `;
 
-    const papers = state.allPapers.filter(
+    const semPapers = state.allPapers.filter(
       (p) => matchesBranch(p.branch, b) && Number(p.semester) === Number(s)
     );
 
-    if (papers.length === 0) {
+    // Group papers by unique subject names
+    const subjectsMap = new Map();
+    semPapers.forEach((p) => {
+      const subj = (p.subject || "").trim();
+      if (!subj) return;
+      const key = subj.toLowerCase();
+      if (!subjectsMap.has(key)) {
+        subjectsMap.set(key, { name: subj, count: 0 });
+      }
+      subjectsMap.get(key).count++;
+    });
+
+    const subjectsList = Array.from(subjectsMap.values());
+
+    if (subjectsList.length === 0) {
       const emptyRow = document.createElement("div");
       emptyRow.className = "folder-empty-row";
       emptyRow.innerHTML = `
-        <div>📁 No papers uploaded yet for <strong>${escapeHtml(b.code)} Semester ${s}</strong>.</div>
+        <div>📁 No subjects or papers uploaded yet for <strong>${escapeHtml(b.code)} Semester ${s}</strong>.</div>
         <button class="btn-contribute-mini" onclick="openUploadForContext('${escapeHtml(b.code)}', ${s})">+ Contribute First Paper</button>
       `;
       listEl.appendChild(emptyRow);
     } else {
-      papers.forEach((p) => {
+      subjectsList.sort((a, b) => a.name.localeCompare(b.name)).forEach((sub) => {
+        const row = document.createElement("div");
+        row.className = "folder-row-item";
+        row.innerHTML = `
+          <div class="folder-left-content">
+            ${FOLDER_SVG}
+            <span class="folder-name-text">${escapeHtml(sub.name.toUpperCase())}</span>
+          </div>
+          <div class="folder-right-content">
+            <span class="folder-file-count">${sub.count} ${sub.count === 1 ? 'file' : 'files'}</span>
+            <span class="folder-row-chevron">&rsaquo;</span>
+          </div>
+        `;
+        row.addEventListener("click", () => {
+          state.folderLevel = "subject";
+          state.folderSubject = sub.name;
+          renderFolderDirectory();
+        });
+        listEl.appendChild(row);
+      });
+    }
+
+  } else if (state.folderLevel === "subject") {
+    const b = state.folderBranch;
+    const s = state.folderSem;
+    const subj = state.folderSubject;
+
+    breadcrumbEl.innerHTML = `
+      <span class="crumb-link" onclick="goToFolderLevel('root')">pyqs</span>
+      <span style="color:#71717A;margin:0 4px;">/</span>
+      <span class="crumb-link" onclick="goToFolderLevel('branch')">${escapeHtml(b.code || b.name)}</span>
+      <span style="color:#71717A;margin:0 4px;">/</span>
+      <span class="crumb-link" onclick="goToFolderLevel('semester')">SEMESTER ${s}</span>
+      <span style="color:#71717A;margin:0 4px;">/</span>
+      <span class="crumb-active">${escapeHtml(subj)}</span>
+    `;
+
+    const subjectPapers = state.allPapers.filter(
+      (p) => matchesBranch(p.branch, b) &&
+             Number(p.semester) === Number(s) &&
+             p.subject && p.subject.toLowerCase() === subj.toLowerCase()
+    );
+
+    if (subjectPapers.length === 0) {
+      const emptyRow = document.createElement("div");
+      emptyRow.className = "folder-empty-row";
+      emptyRow.innerHTML = `
+        <div>📁 No files found for <strong>${escapeHtml(subj)}</strong>.</div>
+        <button class="btn-contribute-mini" onclick="openUploadForContext('${escapeHtml(b.code)}', ${s}, '${escapeHtml(subj)}')">+ Contribute Paper for this Subject</button>
+      `;
+      listEl.appendChild(emptyRow);
+    } else {
+      subjectPapers.forEach((p) => {
         listEl.appendChild(createPaperRow(p));
       });
       bindPaperEvents(listEl);
@@ -397,15 +464,23 @@ window.goToFolderLevel = function(level) {
     state.folderLevel = "root";
     state.folderBranch = null;
     state.folderSem = null;
+    state.folderSubject = null;
   } else if (level === "branch") {
     state.folderLevel = "branch";
     state.folderSem = null;
+    state.folderSubject = null;
+  } else if (level === "semester") {
+    state.folderLevel = "semester";
+    state.folderSubject = null;
   }
   renderFolderDirectory();
 };
 
 function handleFolderUp() {
-  if (state.folderLevel === "semester") {
+  if (state.folderLevel === "subject") {
+    state.folderLevel = "semester";
+    state.folderSubject = null;
+  } else if (state.folderLevel === "semester") {
     state.folderLevel = "branch";
     state.folderSem = null;
   } else if (state.folderLevel === "branch") {
@@ -915,9 +990,10 @@ function renderContributorsList(list) {
 // ---------------------------------------------------------------------
 // Contextual Upload Opener
 // ---------------------------------------------------------------------
-window.openUploadForContext = function(branchCode, semesterNum) {
+window.openUploadForContext = function(branchCode, semesterNum, subject) {
   if (branchCode && el("uploadBranch")) el("uploadBranch").value = branchCode;
   if (semesterNum && el("uploadSemester")) el("uploadSemester").value = semesterNum;
+  if (subject && el("uploadSubject")) el("uploadSubject").value = subject;
   openModal("uploadModal");
 };
 

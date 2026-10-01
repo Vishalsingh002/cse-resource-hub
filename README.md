@@ -50,25 +50,12 @@ cse-resource-hub/
 pip install -r requirements.txt
 ```
 
-### 2. Set environment variables (Optional)
-```bash
-# Windows PowerShell:
-$env:ADMIN_EMAIL="admin@college.edu"
-$env:ADMIN_PASSWORD="YourStrongPassword123!"
-$env:SECRET_KEY="your-random-secret-key"
-
-# Linux / Mac:
-export ADMIN_EMAIL="admin@college.edu"
-export ADMIN_PASSWORD="YourStrongPassword123!"
-export SECRET_KEY="your-random-secret-key"
-```
-
-### 3. Run the application
+### 2. Run the application
 ```bash
 python app.py
 ```
 
-### 4. Open in your browser
+### 3. Open in your browser
 ```
 http://127.0.0.1:5000
 ```

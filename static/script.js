@@ -103,10 +103,12 @@ const state = {
   },
   subject: "",
   viewMode: "folders",  // default to folder directory mode (matching screenshot 5)
-  folderLevel: "root",  // "root", "branch", "semester", "subject"
+  folderLevel: "root",  // "root", "branch", "semester", "subject", "category"
   folderBranch: null,
   folderSem: null,
   folderSubject: null,
+  folderCategoryKey: null,
+  folderCategoryName: null,
 };
 
 const el = (id) => document.getElementById(id);
@@ -230,6 +232,49 @@ function getInitials(name) {
   const parts = name.trim().split(/\s+/);
   if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
   return name.slice(0, 2).toUpperCase();
+}
+
+// ---------------------------------------------------------------------
+// Determine Resource Category for Subject Folder Organization
+// ---------------------------------------------------------------------
+function getPaperCategory(p) {
+  const rawType = (p.type || p.paper_type || "").toLowerCase().trim();
+  const title = (p.title || "").toLowerCase();
+
+  // 1. End-Term Exams (highest priority for exam prep)
+  if (rawType === "ent" || rawType === "end" || title.includes("end sem") || title.includes("end-term") || title.includes("endterm") || /\bend\b/.test(title)) {
+    return { key: "ent", name: "End-Term Exams", order: 1 };
+  }
+  // 2. Mid-Term Exams
+  if (rawType === "mid" || title.includes("mid sem") || title.includes("mid-term") || title.includes("midterm") || /\bmid\b/.test(title)) {
+    return { key: "mid", name: "Mid-Term Exams", order: 2 };
+  }
+  // 3. MFT (Mid Final Term)
+  if (rawType === "mft" || title.includes("mft")) {
+    return { key: "mft", name: "MFT (Mid Final Term)", order: 3 };
+  }
+  // 4. Tutorials & Assignments
+  if (rawType === "tut" || rawType === "assignment" || title.includes("tutorial") || title.includes("assignment")) {
+    return { key: "tut", name: "Tutorials & Assignments", order: 4 };
+  }
+  // 5. Notes & Study Material
+  if (rawType === "notes" || rawType === "note" || title.includes("notes") || title.includes("lecture")) {
+    return { key: "notes", name: "Notes & Study Material", order: 5 };
+  }
+  // 6. Syllabus & Course Guides
+  if (rawType === "syl" || rawType === "syllabus" || title.includes("syllabus") || (title.startsWith("#") && !title.includes("sem") && !title.includes("mft") && !title.includes("tut") && !title.includes("assignment") && !title.includes("lab"))) {
+    return { key: "syl", name: "Syllabus & Course Guides", order: 6 };
+  }
+  // 7. Lab Manuals
+  if (rawType === "lab" || title.includes("lab manual") || title.includes("lab")) {
+    return { key: "lab", name: "Lab Manuals", order: 7 };
+  }
+  // 8. Previous Year Questions (PYQs)
+  if (rawType === "pyq" || title.includes("pyq") || title.includes("question paper")) {
+    return { key: "pyq", name: "Previous Year Questions (PYQs)", order: 8 };
+  }
+
+  return { key: "other", name: "Other Resources", order: 9 };
 }
 
 // ---------------------------------------------------------------------
@@ -451,7 +496,115 @@ function renderFolderDirectory() {
       `;
       listEl.appendChild(emptyRow);
     } else {
+      // Group papers into categories (folders based on what PDFs are inside)
+      const categoriesMap = new Map();
       subjectPapers.forEach((p) => {
+        const cat = getPaperCategory(p);
+        if (!categoriesMap.has(cat.key)) {
+          categoriesMap.set(cat.key, {
+            key: cat.key,
+            name: cat.name,
+            order: cat.order,
+            count: 0
+          });
+        }
+        categoriesMap.get(cat.key).count++;
+      });
+
+      const categoriesList = Array.from(categoriesMap.values()).sort(
+        (a, b) => a.order - b.order || a.name.localeCompare(b.name)
+      );
+
+      // Render category folders
+      categoriesList.forEach((cat) => {
+        const row = document.createElement("div");
+        row.className = "folder-row-item";
+        row.innerHTML = `
+          <div class="folder-left-content">
+            ${FOLDER_SVG}
+            <span class="folder-name-text">${escapeHtml(cat.name)}</span>
+          </div>
+          <div class="folder-right-content">
+            <span class="folder-file-count">${cat.count} ${cat.count === 1 ? 'file' : 'files'}</span>
+            <span class="folder-row-chevron">&rsaquo;</span>
+          </div>
+        `;
+        row.addEventListener("click", () => {
+          state.folderLevel = "category";
+          state.folderCategoryKey = cat.key;
+          state.folderCategoryName = cat.name;
+          renderFolderDirectory();
+        });
+        listEl.appendChild(row);
+      });
+
+      // Also provide an "All Resources" folder option if multiple categories exist
+      if (categoriesList.length > 1) {
+        const allRow = document.createElement("div");
+        allRow.className = "folder-row-item";
+        allRow.innerHTML = `
+          <div class="folder-left-content">
+            ${FOLDER_SVG}
+            <span class="folder-name-text">All Resources (${escapeHtml(subj)})</span>
+          </div>
+          <div class="folder-right-content">
+            <span class="folder-file-count">${subjectPapers.length} ${subjectPapers.length === 1 ? 'file' : 'files'}</span>
+            <span class="folder-row-chevron">&rsaquo;</span>
+          </div>
+        `;
+        allRow.addEventListener("click", () => {
+          state.folderLevel = "category";
+          state.folderCategoryKey = "all";
+          state.folderCategoryName = `All Resources (${subj})`;
+          renderFolderDirectory();
+        });
+        listEl.appendChild(allRow);
+      }
+    }
+
+  } else if (state.folderLevel === "category") {
+    const b = state.folderBranch;
+    const s = state.folderSem;
+    const subj = state.folderSubject;
+    const catKey = state.folderCategoryKey;
+    const catName = state.folderCategoryName;
+
+    breadcrumbEl.innerHTML = `
+      <span class="crumb-link" onclick="goToFolderLevel('root')">pyqs</span>
+      <span style="color:#71717A;margin:0 4px;">/</span>
+      <span class="crumb-link" onclick="goToFolderLevel('branch')">${escapeHtml(b.code || b.name)}</span>
+      <span style="color:#71717A;margin:0 4px;">/</span>
+      <span class="crumb-link" onclick="goToFolderLevel('semester')">SEMESTER ${s}</span>
+      <span style="color:#71717A;margin:0 4px;">/</span>
+      <span class="crumb-link" onclick="goToFolderLevel('subject')">${escapeHtml(subj)}</span>
+      <span style="color:#71717A;margin:0 4px;">/</span>
+      <span class="crumb-active">${escapeHtml(catName)}</span>
+    `;
+
+    const subjectPapers = state.allPapers.filter(
+      (p) => matchesBranch(p.branch, b) &&
+             Number(p.semester) === Number(s) &&
+             p.subject && p.subject.toLowerCase() === subj.toLowerCase()
+    );
+
+    let categoryPapers = [];
+    if (catKey === "all") {
+      categoryPapers = [...subjectPapers];
+    } else {
+      categoryPapers = subjectPapers.filter((p) => getPaperCategory(p).key === catKey);
+    }
+
+    if (categoryPapers.length === 0) {
+      const emptyRow = document.createElement("div");
+      emptyRow.className = "folder-empty-row";
+      emptyRow.innerHTML = `
+        <div>📁 No files found in <strong>${escapeHtml(catName)}</strong>.</div>
+        <button class="btn-contribute-mini" onclick="openUploadForContext('${escapeHtml(b.code)}', ${s}, '${escapeHtml(subj)}', '${escapeHtml(catKey)}')">+ Contribute Paper</button>
+      `;
+      listEl.appendChild(emptyRow);
+    } else {
+      categoryPapers.sort((a, b) => (b.title || "").localeCompare(a.title || ""));
+      categoryPapers.forEach((p) => {
         listEl.appendChild(createPaperRow(p));
       });
       bindPaperEvents(listEl);
@@ -465,27 +618,50 @@ window.goToFolderLevel = function(level) {
     state.folderBranch = null;
     state.folderSem = null;
     state.folderSubject = null;
+    state.folderCategoryKey = null;
+    state.folderCategoryName = null;
   } else if (level === "branch") {
     state.folderLevel = "branch";
     state.folderSem = null;
     state.folderSubject = null;
+    state.folderCategoryKey = null;
+    state.folderCategoryName = null;
   } else if (level === "semester") {
     state.folderLevel = "semester";
     state.folderSubject = null;
+    state.folderCategoryKey = null;
+    state.folderCategoryName = null;
+  } else if (level === "subject") {
+    state.folderLevel = "subject";
+    state.folderCategoryKey = null;
+    state.folderCategoryName = null;
   }
   renderFolderDirectory();
 };
 
 function handleFolderUp() {
-  if (state.folderLevel === "subject") {
+  if (state.folderLevel === "category") {
+    state.folderLevel = "subject";
+    state.folderCategoryKey = null;
+    state.folderCategoryName = null;
+  } else if (state.folderLevel === "subject") {
     state.folderLevel = "semester";
     state.folderSubject = null;
+    state.folderCategoryKey = null;
+    state.folderCategoryName = null;
   } else if (state.folderLevel === "semester") {
     state.folderLevel = "branch";
     state.folderSem = null;
+    state.folderSubject = null;
+    state.folderCategoryKey = null;
+    state.folderCategoryName = null;
   } else if (state.folderLevel === "branch") {
     state.folderLevel = "root";
     state.folderBranch = null;
+    state.folderSem = null;
+    state.folderSubject = null;
+    state.folderCategoryKey = null;
+    state.folderCategoryName = null;
   }
   renderFolderDirectory();
 }
@@ -990,10 +1166,11 @@ function renderContributorsList(list) {
 // ---------------------------------------------------------------------
 // Contextual Upload Opener
 // ---------------------------------------------------------------------
-window.openUploadForContext = function(branchCode, semesterNum, subject) {
+window.openUploadForContext = function(branchCode, semesterNum, subject, typeKey) {
   if (branchCode && el("uploadBranch")) el("uploadBranch").value = branchCode;
   if (semesterNum && el("uploadSemester")) el("uploadSemester").value = semesterNum;
   if (subject && el("uploadSubject")) el("uploadSubject").value = subject;
+  if (typeKey && typeKey !== "all" && el("uploadType")) el("uploadType").value = typeKey;
   openModal("uploadModal");
 };
 
@@ -1054,6 +1231,12 @@ function bindEvents() {
     }
     if (state.folderSem && el("uploadSemester")) {
       el("uploadSemester").value = state.folderSem;
+    }
+    if (state.folderSubject && el("uploadSubject")) {
+      el("uploadSubject").value = state.folderSubject;
+    }
+    if (state.folderCategoryKey && state.folderCategoryKey !== "all" && el("uploadType")) {
+      el("uploadType").value = state.folderCategoryKey;
     }
     openModal("uploadModal");
   };
@@ -1387,6 +1570,12 @@ window.openUploadModal = function() {
   }
   if (state.folderSem && el("uploadSemester")) {
     el("uploadSemester").value = state.folderSem;
+  }
+  if (state.folderSubject && el("uploadSubject")) {
+    el("uploadSubject").value = state.folderSubject;
+  }
+  if (state.folderCategoryKey && state.folderCategoryKey !== "all" && el("uploadType")) {
+    el("uploadType").value = state.folderCategoryKey;
   }
   window.openModal("uploadModal");
 };

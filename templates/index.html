@@ -1,225 +1,602 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Quantum University — CSE Resource Hub</title>
-<link rel="icon"
-          type="image/png"
-          href="{{ url_for('static', filename='quantum_logo.png') }}">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Quantum University — Previous Year Question Papers (PYQs) &amp; Notes</title>
+  <meta name="description" content="A collection of student-contributed previous year question papers, notes, and syllabus for Quantum University semester examinations. 100% ad-free." />
+  <link rel="icon" type="image/png" href="{{ url_for('static', filename='quantum_logo.png') }}">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Kalam:wght@400;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=13" />
 </head>
 <body>
 
-  <header class="hero">
-    <div class="hero-glow hero-glow-1"></div>
-    <div class="hero-glow hero-glow-2"></div>
+  <!-- Top Sticky Minimalist Navbar -->
+  <nav class="nav-bar">
+    <div class="nav-inner">
+      <div class="nav-left">
+        <a href="/" class="brand-link">
+          <img src="{{ url_for('static', filename='quantum_logo.png') }}" alt="Quantum Logo" class="brand-logo-img" />
+          <span class="brand-title">Quantum University <span class="brand-sub-badge">PYQs</span></span>
+        </a>
+      </div>
 
-    <div class="hero-top">
-      <div class="brand">
-        <span class="logo-mark">
-          <img src="{{ url_for('static', filename='logo.png') }}" alt="Quantum University logo" />
-        </span>
-        <div class="brand-text">
-          <h1>CSE Resource Hub <span class="sparkle">✦</span></h1>
-          <p class="brand-sub">Quantum University, Roorkee</p>
-          <p class="brand-tagline">Previous Year Papers, MFT &amp; Notes</p>
+      <div class="nav-right">
+        <!-- Search Trigger / Input -->
+        <div class="nav-search-wrap">
+          <svg class="search-svg" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          </svg>
+          <input id="searchInput" type="text" placeholder="Search pyqs, subjects, codes…" autocomplete="off" />
+          <button id="clearSearchBtn" class="clear-btn hidden" title="Clear">&times;</button>
+        </div>
+
+        <!-- Contribute Resource Button -->
+        <button id="openUploadBtn" class="nav-btn btn-contribute">
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.5">
+            <line x1="12" y1="5" x2="12" y2="19"></line>
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+          </svg>
+          <span>Contribute</span>
+        </button>
+
+        <!-- Contributors Hall of Fame -->
+        <button id="openContributorsBtn" class="nav-btn btn-ghost" title="Top Contributors">
+          <span>🏆 Hall of Fame</span>
+        </button>
+
+        <!-- Admin Access -->
+        <button id="adminPill" class="admin-pill hidden" title="Admin Portal">
+          <span>Admin</span>
+          <span id="pendingBadge" class="badge-pending hidden">0</span>
+        </button>
+        <button id="adminBtn" class="nav-btn-link hidden" title="Admin Login">Admin</button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Main Container -->
+  <main class="page-container" id="mainContent">
+
+    <!-- Top Hero Notice -->
+    <header class="page-hero">
+      <div class="hero-top-row">
+        <h1 class="portal-main-title">Quantum University Academic Archive</h1>
+        <div class="hero-stats-chips">
+          <span class="stat-chip"><strong id="statPapers">0</strong> papers</span>
+          <span class="stat-chip"><strong id="statBranches">0</strong> departments</span>
+          <span class="stat-chip"><strong id="statContributors">0</strong> contributors</span>
         </div>
       </div>
-      <div class="topbar-actions">
-        <button id="adminPill" class="admin-pill hidden">
-          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
-          Admin
-          <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
-        </button>
-        <button id="adminBtn" class="btn btn-ghost">Admin sign-in</button>
-      </div>
-    </div>
+      <p class="portal-main-desc">
+        A community-driven repository of semester previous year question papers (PYQs), mid-term exams, end-term exams, syllabi, and study notes. Free, ad-free, and open to all students.
+      </p>
+    </header>
 
-    <div class="stats-row">
-      <div class="stat">
-        <div class="stat-num" id="statPapers">0</div>
-        <div class="stat-label">papers shared</div>
-      </div>
-      <div class="stat">
-        <div class="stat-num" id="statSemesters">0/8</div>
-        <div class="stat-label">semesters covered</div>
-      </div>
-    </div>
-  </header>
+    <!-- Main Folder Explorer Section (Full Width, Screenshot 5) -->
+    <section class="explorer-section">
 
-  <main class="container">
-
-    <div id="semesterTabs" class="semester-tabs"></div>
-
-    <section class="controls-row">
-      <div class="search-box">
-        <svg class="search-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-        <input id="searchInput" type="text" placeholder="Search subject or title…" class="search-input" />
+      <!-- Folder Explorer Header (Matching Screenshot 5: ↑ pyqs) -->
+      <div class="explorer-mode-header">
+        <div class="folder-path-bar">
+          <button id="folderUpBtn" class="btn-folder-up hidden" title="Go up one folder">&uarr;</button>
+          <div class="folder-path-label font-kalam" id="folderBreadcrumb">pyqs</div>
+        </div>
       </div>
-      <button id="uploadBtn" class="btn btn-primary hidden">
-        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-        Add resource
-      </button>
+
+      <!-- FOLDER DIRECTORY TREE (Matching Screenshot 5 Exactly) -->
+      <div id="folderDirectoryView" class="folder-tree-view">
+        <div class="folder-tree-list" id="folderTreeList">
+          <!-- Rendered dynamically by script.js -->
+        </div>
+      </div>
+
+      <!-- Loading Indicator -->
+      <div id="loadingState" class="loading-state hidden">
+        <div class="loader-spinner"></div>
+        <p>Loading university vault...</p>
+      </div>
+
+      <!-- Papers Grid (Used for Search Results) -->
+      <div id="papersGrid" class="papers-grid-wrap hidden"></div>
+
+      <!-- Empty State -->
+      <div id="emptyState" class="empty-box hidden">
+        <div class="empty-icon-wrap">📄</div>
+        <h3 id="emptyTitle">No resources found</h3>
+        <p id="emptyText">Be the first to contribute past papers or lecture notes for this subject.</p>
+        <button id="emptyActionBtn" class="btn-contribute-empty">+ Contribute Resource</button>
+      </div>
+
     </section>
 
-    <section id="subjectsGrid" class="subjects-grid"></section>
-
-    <div id="subjectHeader" class="subject-header hidden">
-      <button id="backToSubjectsBtn" type="button" class="btn btn-outline btn-sm">
-        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
-        Back to subjects
-      </button>
-      <h2 id="subjectHeaderTitle" class="subject-header-title"></h2>
-    </div>
-
-    <div id="typeFilter" class="type-pills hidden"></div>
-
-    <p id="loadingState" class="loading-state hidden">Opening the vault…</p>
-
-    <section id="papersGrid" class="papers-grid"></section>
-
-    <div id="emptyState" class="empty-state hidden">
-      <div class="empty-icon">
-        <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg>
+    <!-- Quick Request Section -->
+    <section class="community-bottom-section">
+      <div class="community-block community-block-action">
+        <h3 class="community-heading font-kalam">Missing a Paper?</h3>
+        <p class="community-text">
+          Need previous year questions or lecture notes for a specific subject? Send a quick request to fellow students!
+        </p>
+        <button id="requestPaperBtn" onclick="openModal('requestModal')" class="btn-sidebar-action">
+          📬 Request Missing Paper
+        </button>
       </div>
-      <h3 id="emptyTitle">Nothing here yet</h3>
-      <p id="emptyText">Add the first paper for this semester below.</p>
-      <button id="emptyActionBtn" class="btn btn-tint hidden">+ Add the first resource</button>
-    </div>
+    </section>
+
   </main>
 
-  <footer class="site-footer">
-    <img class="logo-mark-sm" src="{{ url_for('static', filename='logo.png') }}" alt="" />
-    Shared hub — everyone can browse and download.
+  <!-- Professional Student Portal Footer (Matching Screenshots 1 & 4 Exactly) -->
+  <footer class="portal-footer">
+    <div class="footer-wrap">
+      <div class="footer-row-top">
+
+        <!-- Maintainer Column (Matching Screenshot 1 & 4) -->
+        <div class="footer-col-maintainer">
+          <div class="maintainer-line font-kalam">
+            Maintained by <span class="maintainer-name-highlight">Vishal Singh</span>
+          </div>
+          <div class="maintainer-batch">
+            (BTech CSE 2026)
+          </div>
+
+
+          <!-- Social Icon Links Row (Matching Screenshot 1 & 4) -->
+          <div class="footer-social-row">
+            <!-- GitHub -->
+            <a href="https://github.com/Vishalsingh002" target="_blank" rel="noopener noreferrer" class="social-icon-link" title="GitHub">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+                <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/>
+              </svg>
+            </a>
+            <!-- LinkedIn -->
+            <a href="https://linkedin.com" target="_blank" rel="noopener noreferrer" class="social-icon-link" title="LinkedIn">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+                <path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z"/>
+              </svg>
+            </a>
+            <!-- Telegram -->
+            <a href="https://telegram.org" target="_blank" rel="noopener noreferrer" class="social-icon-link" title="Telegram">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+                <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221l-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.446 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.121l-6.871 4.326-2.962-.924c-.643-.204-.657-.643.136-.953l11.57-4.458c.538-.196 1.006.128.832.943z"/>
+              </svg>
+            </a>
+            <!-- Resume / Document -->
+            <a href="javascript:void(0)" onclick="openModal('aboutModal')" class="social-icon-link" title="About Vishal">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                <polyline points="14 2 14 8 20 8"></polyline>
+              </svg>
+            </a>
+            <!-- Web / Globe -->
+            <a href="/" class="social-icon-link" title="Quantum Academic Vault Home">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="2" y1="12" x2="22" y2="12"></line>
+                <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+              </svg>
+            </a>
+          </div>
+
+          <p class="footer-desc-text">
+            A collection of student contributed previous year question papers for Quantum University semester examinations.
+          </p>
+        </div>
+
+        <!-- Quick Links Column (Matching Screenshot 1 & 4) -->
+        <div class="footer-col-links">
+          <h4 class="footer-links-title font-kalam">Quick Links</h4>
+          <ul class="footer-list font-kalam-sub">
+            <li><a href="javascript:void(0)" onclick="openUploadModal()">Contribute</a></li>
+            <li><a href="javascript:void(0)" onclick="openModal('aboutModal')">About</a></li>
+          </ul>
+        </div>
+
+        <!-- Working Conditions & Legal Column -->
+        <div class="footer-col-links">
+          <h4 class="footer-links-title font-kalam">Legal &amp; Policy</h4>
+          <ul class="footer-list font-kalam-sub">
+            <li><a href="javascript:void(0)" onclick="openModal('termsModal')">Terms &amp; Conditions</a></li>
+            <li><a href="javascript:void(0)" onclick="openModal('privacyModal')">Privacy Policy</a></li>
+            <li><a href="javascript:void(0)" onclick="openModal('dmcaModal')">Academic Fair Use / DMCA</a></li>
+            <li><a href="javascript:void(0)" onclick="openModal('dmcaModal')">Takedown Request</a></li>
+            <li><a href="javascript:void(0)" onclick="openModal('requestModal')">Request Missing Paper</a></li>
+          </ul>
+        </div>
+
+      </div>
+
+    </div>
   </footer>
 
-  <!-- Admin Login Modal -->
-  <div id="loginModal" class="modal-overlay hidden">
-    <div class="modal">
-      <button class="modal-close" data-close="loginModal">&times;</button>
-      <div class="modal-icon-wrap">
-        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
-      </div>
-      <h2>Admin sign-in</h2>
-      <p class="modal-subtext"> Browsing and downloading stay open to everyone.</p>
-      <form id="loginForm">
-        <label>Email</label>
-        <input type="email" id="loginEmail" required autocomplete="username" />
-        <label>Password</label>
-        <input type="password" id="loginPassword" required autocomplete="current-password" />
-        <p id="loginError" class="form-error hidden"></p>
-        <button type="submit" class="btn btn-primary btn-block">Sign in</button>
-      </form>
-    </div>
-  </div>
 
-  <!-- Upload Modal -->
-  <div id="uploadModal" class="modal-overlay hidden">
-    <div class="modal modal-cream">
+
+  <!-- ============================================================
+       MODAL 1: Contribute Resource
+       ============================================================ -->
+  <div id="uploadModal" class="modal-overlay hidden" role="dialog" aria-modal="true">
+    <div class="modal modal-wide">
       <button class="modal-close" data-close="uploadModal">&times;</button>
-      <div class="modal-title-row">
-        <span class="modal-title-icon">
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-        </span>
-        <h2>Add a resource</h2>
+      <div class="modal-header-simple">
+        <h2 class="font-kalam">Contribute Resource</h2>
+        <p class="modal-subtext">Share question papers, notes, or lab manuals with your campus batch</p>
       </div>
-      <form id="uploadForm">
-        <label>Title</label>
-        <input type="text" id="uploadTitle" placeholder="e.g. Data Structures End Term 2024" required />
 
-        <div class="modal-grid">
+      <form id="uploadForm">
+        <div class="form-callout-clean">
+          <label>Your Contributor Name (Publicly Credited) <span class="req">*</span></label>
+          <div class="form-row-2">
+            <input type="text" id="uploadContributorName" placeholder="e.g. Vishal Singh" required />
+            <input type="text" id="uploadContributorContact" placeholder="Roll No / Batch (optional)" />
+          </div>
+        </div>
+
+        <label>Resource Title <span class="req">*</span></label>
+        <input type="text" id="uploadTitle" placeholder="e.g. End Term 2024 Question Paper with Solutions" required />
+
+        <div class="form-row-2">
           <div>
-            <label>Semester</label>
+            <label>Branch / Department <span class="req">*</span></label>
+            <select id="uploadBranch" required></select>
+          </div>
+          <div>
+            <label>Semester <span class="req">*</span></label>
             <select id="uploadSemester" required></select>
           </div>
+        </div>
+
+        <div class="form-row-2">
           <div>
-            <label>Type</label>
-            <select id="uploadType" required></select>
+            <label>Subject Name <span class="req">*</span></label>
+            <input type="text" id="uploadSubject" placeholder="e.g. Design &amp; Analysis of Algorithm" required />
+          </div>
+          <div>
+            <label>Subject Code <span class="optional">(optional)</span></label>
+            <input type="text" id="uploadCode" placeholder="e.g. CS35303" />
           </div>
         </div>
 
-        <div class="modal-grid">
-          <div>
-            <label>Subject</label>
-            <input type="text" id="uploadSubject" placeholder="Data Structures" required />
-          </div>
-          <div>
-            <label>Code <span class="label-hint">(optional)</span></label>
-            <input type="text" id="uploadCode" placeholder="CS-201" />
-          </div>
-        </div>
+        <label>Category <span class="req">*</span></label>
+        <select id="uploadType" required></select>
 
-        <label>File — PDF, Word, PPT, image, etc. <span class="label-hint">(Max 5MB)</span></label>
-        <div id="fileDropzone" class="file-dropzone">
-          <div id="fileDropzoneEmpty" class="file-dropzone-empty">
-            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
-            <span>Click to choose a file</span>
+        <label>File (PDF, Word, PPT, Image) <span class="optional">Max 10MB</span></label>
+        <div id="fileDropzone" class="file-drop-area">
+          <div id="fileDropzoneEmpty" class="drop-text">
+            <span>📁 Drag &amp; drop or click to choose file</span>
+            <small>Supports PDF, DOC, DOCX, PPT, PNG, JPG</small>
           </div>
-          <div id="fileDropzonePreview" class="file-preview hidden">
-            <span class="file-preview-icon">
-              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
-            </span>
-            <div class="file-preview-info">
-              <div class="file-preview-name" id="filePreviewName"></div>
-              <div class="file-preview-meta" id="filePreviewMeta"></div>
-            </div>
+          <div id="fileDropzonePreview" class="file-preview-pill hidden">
+            <span id="filePreviewName"></span>
+            <span id="filePreviewMeta" class="preview-meta"></span>
           </div>
         </div>
         <input type="file" id="uploadFile" accept=".pdf,.doc,.docx,.ppt,.pptx,.jpg,.jpeg,.png,.gif,.webp" required style="display:none" />
 
-        <p id="uploadError" class="form-error hidden"></p>
-        <button type="submit" class="btn btn-primary btn-block">Add resource</button>
+        <p id="uploadError" class="form-error-msg hidden"></p>
+        <button type="submit" class="btn-modal-action">Publish to Vault 🚀</button>
       </form>
     </div>
   </div>
 
-  <div id="editModal" class="modal-overlay hidden">
-    <div class="modal modal-cream">
-      <button class="modal-close" data-close="editModal">&times;</button>
-      <div class="modal-title-row">
-        <span class="modal-title-icon">
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
-        </span>
-        <h2>Edit resource</h2>
+  <!-- ============================================================
+       MODAL 2: Top Contributors / Hall of Fame
+       ============================================================ -->
+  <div id="contributorsModal" class="modal-overlay hidden" role="dialog" aria-modal="true">
+    <div class="modal modal-wide">
+      <button class="modal-close" data-close="contributorsModal">&times;</button>
+      <div class="modal-header-simple">
+        <div class="modal-title-row">
+          <h2 class="font-kalam">Campus Hall of Fame 🏆</h2>
+          <span class="hall-badge">Campus Leaderboard</span>
+        </div>
+        <p class="modal-subtext">Recognizing students and faculty contributing to the open academic vault</p>
       </div>
+
+      <div id="contributorsList" class="contributors-simple-list">
+        <!-- Rendered dynamically -->
+      </div>
+
+      <div class="contributors-footer-card">
+        <div class="footer-cta-info">
+          <span class="sparkle-icon">✨</span>
+          <div>
+            <div class="footer-cta-title">Want your name on the board?</div>
+            <div class="footer-cta-sub">Upload semester question papers or revision notes to earn your badge!</div>
+          </div>
+        </div>
+        <button type="button" class="btn btn-sm btn-primary" onclick="window.closeModal('contributorsModal'); window.openModal('uploadModal');">
+          + Contribute
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================
+       MODAL 3: Terms & Conditions
+       ============================================================ -->
+  <div id="termsModal" class="modal-overlay hidden" role="dialog" aria-modal="true">
+    <div class="modal modal-wide">
+      <button class="modal-close" data-close="termsModal">&times;</button>
+      <div class="modal-header-simple">
+        <h2 class="font-kalam">Terms &amp; Working Conditions</h2>
+        <p class="modal-subtext">Academic Fair Use, Working Conditions &amp; Community Guidelines</p>
+      </div>
+
+      <div class="legal-text-scroll">
+        <h4>1. Academic Purpose &amp; Free Non-Commercial Access</h4>
+        <p>Quantum Academic Vault is a student-maintained peer initiative created exclusively for educational study and exam preparation. This repository is strictly non-commercial, free of charge, and has zero advertising, monetization, or paywalls.</p>
+
+        <h4>2. Academic Fair Use &amp; Intellectual Property</h4>
+        <p>Past question papers and course curriculum remain the intellectual property of Quantum University and respective department faculties. Student-authored lecture notes and revision summaries remain the property of their respective student authors, shared under Fair Dealing for educational study purposes.</p>
+
+        <h4>3. Contributor Working Conditions</h4>
+        <p>By submitting materials to the Vault, contributors warrant that uploads are authentic question papers, syllabus guides, or verified notes, containing no malicious code, malware, or ongoing confidential exam question leaks.</p>
+
+        <h4>4. Takedown Policy</h4>
+        <p>Faculty members or authors wishing to have specific materials removed may use the Takedown Request option in the footer for prompt review and resolution within 24 hours.</p>
+      </div>
+
+      <button class="btn-modal-action" onclick="closeModal('termsModal')">I Agree &amp; Understand</button>
+    </div>
+  </div>
+
+  <!-- ============================================================
+       MODAL 4: Privacy Policy
+       ============================================================ -->
+  <div id="privacyModal" class="modal-overlay hidden" role="dialog" aria-modal="true">
+    <div class="modal">
+      <button class="modal-close" data-close="privacyModal">&times;</button>
+      <div class="modal-header-simple">
+        <h2 class="font-kalam">Privacy Policy</h2>
+        <p class="modal-subtext">Zero Tracking &bull; Student Privacy First &bull; No Invasive Analytics</p>
+      </div>
+
+      <div class="legal-text-scroll">
+        <h4>1. Zero Tracking</h4>
+        <p>We do not track your browsing habits, sell user data, or inject third-party ad network pixels. You can browse, preview, and download all papers without creating an account or providing an email address.</p>
+
+        <h4>2. Contributor Attribution</h4>
+        <p>When you contribute notes or question papers, only your preferred display name (e.g. &ldquo;Vishal Singh&rdquo;) is publicly shown to credit your contribution. Optional contact details or roll numbers are strictly accessible to moderation admins only.</p>
+      </div>
+
+      <button class="btn-modal-action" onclick="closeModal('privacyModal')">Close</button>
+    </div>
+  </div>
+
+  <!-- ============================================================
+       MODAL 5: DMCA & Takedown Request
+       ============================================================ -->
+  <div id="dmcaModal" class="modal-overlay hidden" role="dialog" aria-modal="true">
+    <div class="modal">
+      <button class="modal-close" data-close="dmcaModal">&times;</button>
+      <div class="modal-header-simple">
+        <h2 class="font-kalam">DMCA &amp; Takedown Request</h2>
+        <p class="modal-subtext">Expedited 24-Hour Copyright &amp; Academic Content Review</p>
+      </div>
+
+      <form id="dmcaForm">
+        <label>Your Name / Department <span class="req">*</span></label>
+        <input type="text" id="dmcaName" placeholder="e.g. Dr. A. Sharma / Department of CSE" required />
+
+        <label>Contact Email <span class="req">*</span></label>
+        <input type="email" id="dmcaContact" placeholder="faculty@college.edu" required />
+
+        <label>Resource Title or Subject <span class="req">*</span></label>
+        <input type="text" id="dmcaSubject" placeholder="e.g. End Term 2024 DAA Question Paper" required />
+
+        <label>Reason for Takedown Request <span class="req">*</span></label>
+        <textarea id="dmcaMessage" rows="3" placeholder="Reason for removal (e.g. copyright holder request, inaccurate answer key)..." required></textarea>
+
+        <p id="dmcaStatusMsg" class="form-error-msg hidden"></p>
+        <button type="submit" class="btn-modal-action">Submit Takedown Notice</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ============================================================
+       MODAL 6: Request a Missing Paper / Feedback
+       ============================================================ -->
+  <div id="requestModal" class="modal-overlay hidden" role="dialog" aria-modal="true">
+    <div class="modal">
+      <button class="modal-close" data-close="requestModal">&times;</button>
+      <div class="modal-header-simple">
+        <h2 class="font-kalam">Request Missing Paper</h2>
+        <p class="modal-subtext">Need a past year paper or found an issue? Let us know!</p>
+      </div>
+
+      <form id="requestForm">
+        <label>Request Type <span class="req">*</span></label>
+        <select id="requestCategory" required>
+          <option value="request_paper">Request a Missing Past Year Paper (PYQ)</option>
+          <option value="request_notes">Request Lecture Notes / Study Guide</option>
+          <option value="report_issue">Report an Issue / Broken File Download</option>
+          <option value="feedback">General Suggestion or Feedback</option>
+        </select>
+
+        <div class="form-row-2">
+          <div>
+            <label>Your Name <span class="optional">(optional)</span></label>
+            <input type="text" id="requestName" placeholder="e.g. Vishal Singh" />
+          </div>
+          <div>
+            <label>Contact Email / Telegram <span class="optional">(optional)</span></label>
+            <input type="text" id="requestContact" placeholder="For update notify" />
+          </div>
+        </div>
+
+        <div class="form-row-2">
+          <div>
+            <label>Subject Name</label>
+            <input type="text" id="requestSubject" placeholder="e.g. Operating Systems" />
+          </div>
+          <div>
+            <label>Branch / Semester</label>
+            <input type="text" id="requestBranch" placeholder="e.g. CSE Sem 4" />
+          </div>
+        </div>
+
+        <label>Details &amp; Specific Exam Year <span class="req">*</span></label>
+        <textarea id="requestMessage" rows="3" placeholder="e.g. Please upload 2023 or 2024 End Term PYQ with solutions if anyone has it..." required></textarea>
+
+        <p id="requestStatusMsg" class="form-error-msg hidden"></p>
+        <button type="submit" class="btn-modal-action">Submit Request</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ============================================================
+       MODAL 7: About the Vault
+       ============================================================ -->
+  <div id="aboutModal" class="modal-overlay hidden" role="dialog" aria-modal="true">
+    <div class="modal">
+      <button class="modal-close" data-close="aboutModal">&times;</button>
+      <div class="modal-header-simple">
+        <h2 class="font-kalam">About Quantum Vault</h2>
+        <p class="modal-subtext">Built by Students &bull; Dedicated to Academic Excellence</p>
+      </div>
+
+      <div class="legal-text-scroll">
+        <p><strong>Quantum Academic Vault</strong> was created by <strong>Vishal Singh</strong> (B.Tech Computer Science &amp; Engineering) as an open-access platform to solve the common campus problem: finding authentic past year exam papers and quality study notes without spam, paywalls, or scattered WhatsApp groups.</p>
+        
+        <div class="maintainer-highlight-simple">
+          <strong>Vishal Singh &bull; Lead Maintainer</strong>
+          <p>B.Tech CSE 2022&ndash;2026 &bull; Quantum University, Roorkee</p>
+          <a href="https://github.com/Vishalsingh002" target="_blank" rel="noopener noreferrer" class="link-support-work">github.com/Vishalsingh002 <span class="external-arrow">&nearr;</span></a>
+        </div>
+      </div>
+
+      <button class="btn-modal-action" onclick="closeModal('aboutModal')">Close</button>
+    </div>
+  </div>
+
+  <!-- ============================================================
+       MODAL 8: Admin Moderation Portal
+       ============================================================ -->
+  <div id="moderationModal" class="modal-overlay hidden" role="dialog" aria-modal="true">
+    <div class="modal modal-wide">
+      <button class="modal-close" data-close="moderationModal">&times;</button>
+      <div class="modal-header-simple">
+        <h2 class="font-kalam">Admin Moderation Portal</h2>
+        <p class="modal-subtext">Review pending community uploads, student requests, or remove spam</p>
+      </div>
+
+      <div class="admin-tab-bar">
+        <button id="adminTabPending" class="admin-tab active">Pending Queue (<span id="adminPendingCount">0</span>)</button>
+        <button id="adminTabRequests" class="admin-tab">Student Requests (<span id="adminRequestsCount">0</span>)</button>
+        <button id="adminTabAccount" class="admin-tab">Account &amp; Security</button>
+      </div>
+
+      <!-- Tab Content 1: Pending Review -->
+      <div id="adminPendingSection">
+        <div id="adminPendingList" class="admin-pending-list"></div>
+      </div>
+
+      <!-- Tab Content 2: Student Requests -->
+      <div id="adminRequestsSection" class="hidden">
+        <div id="adminRequestsList" class="admin-pending-list"></div>
+      </div>
+
+      <!-- Tab Content 3: Account -->
+      <div id="adminAccountSection" class="hidden">
+        <div class="account-card">
+          <h4>Change Admin Password</h4>
+          <form id="changePasswordForm">
+            <label>Current Password</label>
+            <input type="password" id="currentPassword" required />
+            <label>New Password (min 8 characters)</label>
+            <input type="password" id="newPassword" required minlength="8" />
+            <p id="changePasswordMsg" class="form-error-msg hidden"></p>
+            <button type="submit" class="btn-modal-action">Update Password</button>
+          </form>
+          <hr class="simple-divider" />
+          <button id="logoutBtn" class="btn-danger-simple">Sign Out of Admin Portal</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================
+       MODAL 9: Admin Sign-in Modal
+       ============================================================ -->
+  <div id="loginModal" class="modal-overlay hidden" role="dialog" aria-modal="true">
+    <div class="modal">
+      <button class="modal-close" data-close="loginModal">&times;</button>
+      <div class="modal-header-simple">
+        <h2 class="font-kalam">Admin Sign-in</h2>
+        <p class="modal-subtext">Students do not need an account. Public browsing, downloading, and contributing stay free and open to everyone.</p>
+      </div>
+
+      <form id="loginForm">
+        <label>Email</label>
+        <input type="email" id="loginEmail" required autocomplete="username" placeholder="admin@college.edu" />
+        <label>Password</label>
+        <input type="password" id="loginPassword" required autocomplete="current-password" placeholder="••••••••" />
+        <p id="loginError" class="form-error-msg hidden"></p>
+        <button type="submit" class="btn-modal-action">Sign in to Moderation</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ============================================================
+       MODAL 10: Edit Resource Modal (Admin Only)
+       ============================================================ -->
+  <div id="editModal" class="modal-overlay hidden" role="dialog" aria-modal="true">
+    <div class="modal">
+      <button class="modal-close" data-close="editModal">&times;</button>
+      <div class="modal-header-simple">
+        <h2 class="font-kalam">Edit Resource</h2>
+      </div>
+
       <form id="editForm">
         <input type="hidden" id="editPaperId" />
         <label>Title</label>
-        <input type="text" id="editTitle" placeholder="e.g. Data Structures End Term 2024" required />
+        <input type="text" id="editTitle" required />
 
-        <div class="modal-grid">
+        <div class="form-row-2">
+          <div>
+            <label>Branch</label>
+            <select id="editBranch" required></select>
+          </div>
           <div>
             <label>Semester</label>
             <select id="editSemester" required></select>
           </div>
-          <div>
-            <label>Type</label>
-            <select id="editType" required></select>
-          </div>
         </div>
 
-        <div class="modal-grid">
+        <div class="form-row-2">
           <div>
             <label>Subject</label>
-            <input type="text" id="editSubject" placeholder="Data Structures" required />
+            <input type="text" id="editSubject" required />
           </div>
           <div>
-            <label>Code <span class="label-hint">(optional)</span></label>
-            <input type="text" id="editCode" placeholder="CS-201" />
+            <label>Subject Code</label>
+            <input type="text" id="editCode" />
           </div>
         </div>
 
-        <p class="modal-subtext">Want to replace the actual file? Delete this resource and upload it again.</p>
-        <p id="editError" class="form-error hidden"></p>
-        <button type="submit" class="btn btn-primary btn-block">Save changes</button>
+        <div class="form-row-2">
+          <div>
+            <label>Category</label>
+            <select id="editType" required></select>
+          </div>
+          <div>
+            <label>Contributor Name</label>
+            <input type="text" id="editContributorName" />
+          </div>
+        </div>
+
+        <p id="editError" class="form-error-msg hidden"></p>
+        <button type="submit" class="btn-modal-action">Save Changes</button>
       </form>
     </div>
   </div>
 
-  <!-- Cache buster ?v=2 added here -->
-  <script src="{{ url_for('static', filename='script.js') }}?v=2"></script>
+  <!-- Toast Notification Container -->
+  <div id="toastContainer" class="toast-container" aria-live="polite"></div>
+
+  <!-- Main JavaScript -->
+  <script src="{{ url_for('static', filename='script.js') }}?v=14"></script>
 </body>
 </html>

@@ -17,10 +17,27 @@ import cloudinary
 import cloudinary.uploader
 
 # ---------------------------------------------------------------------------
-# Config
+# Config & .env Auto-Loader
 # ---------------------------------------------------------------------------
 
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
+
+# Automatically load .env file if present (for Turso & Cloudinary credentials)
+_env_file = os.path.join(BASE_DIR, ".env")
+if os.path.exists(_env_file):
+    try:
+        with open(_env_file, "r", encoding="utf-8") as _f:
+            for _line in _f:
+                _line = _line.strip()
+                if _line and not _line.startswith("#") and "=" in _line:
+                    _k, _v = _line.split("=", 1)
+                    _k = _k.strip()
+                    _v = _v.strip().strip("'\"")
+                    if _k and _k not in os.environ:
+                        os.environ[_k] = _v
+    except Exception:
+        pass
+
 DB_PATH = os.path.join(BASE_DIR, "database.db")
 UPLOAD_DIR = os.path.join(BASE_DIR, "uploads")
 MAX_FILE_BYTES = 10 * 1024 * 1024  # 10 MB per file
@@ -29,11 +46,17 @@ ALLOWED_EXTENSIONS = {"pdf", "doc", "docx", "ppt", "pptx", "jpg", "jpeg", "png",
 # Turso (Cloud SQLite) credentials
 TURSO_DB_URL = os.environ.get("TURSO_DATABASE_URL")
 TURSO_AUTH_TOKEN = os.environ.get("TURSO_AUTH_TOKEN")
+if TURSO_DB_URL and ("your-db-name" in TURSO_DB_URL or "your_turso" in str(TURSO_AUTH_TOKEN)):
+    TURSO_DB_URL = None
+    TURSO_AUTH_TOKEN = None
 
 # Cloudinary credentials
 CLOUDINARY_CLOUD_NAME = os.environ.get("CLOUDINARY_CLOUD_NAME")
 CLOUDINARY_API_KEY = os.environ.get("CLOUDINARY_API_KEY")
 CLOUDINARY_API_SECRET = os.environ.get("CLOUDINARY_API_SECRET")
+if CLOUDINARY_CLOUD_NAME and ("your_cloud_name" in CLOUDINARY_CLOUD_NAME or "your_api_key" in str(CLOUDINARY_API_KEY)):
+    CLOUDINARY_CLOUD_NAME = None
+    CLOUDINARY_API_KEY = None
 
 if CLOUDINARY_CLOUD_NAME and CLOUDINARY_API_KEY:
     cloudinary.config(
@@ -50,12 +73,30 @@ MAX_LOGIN_ATTEMPTS = 5
 LOCKOUT_MINUTES = 10
 
 SEMESTERS = list(range(1, 9))
+
+BRANCHES = [
+    {"id": "all", "code": "ALL", "name": "All Branches"},
+    {"id": "cse", "code": "CSE", "name": "Computer Science & Engineering"},
+    {"id": "aiml", "code": "AI & ML", "name": "Artificial Intelligence & ML"},
+    {"id": "ds", "code": "DS", "name": "Data Science"},
+    {"id": "cs", "code": "CYS", "name": "Cyber Security"},
+    {"id": "ece", "code": "ECE", "name": "Electronics & Communication"},
+    {"id": "me", "code": "ME", "name": "Mechanical Engineering"},
+    {"id": "ce", "code": "CE", "name": "Civil Engineering"},
+    {"id": "ee", "code": "EE", "name": "Electrical Engineering"},
+    {"id": "bca", "code": "BCA", "name": "Bachelor of Computer Applications"},
+    {"id": "mca", "code": "MCA", "name": "Master of Computer Applications"},
+]
+
 TYPES = {
-    "mid": "Mid Term",
-    "mft": "MFT",
-    "ent": "End Term",
+    "pyq": "Previous Year Question (PYQ)",
+    "mid": "Mid Term Exam",
+    "ent": "End Term Exam",
+    "mft": "MFT (Mid Final Term)",
+    "notes": "Notes & Study Material",
     "syl": "Syllabus",
-    "tut": "Tutorial",
+    "tut": "Tutorials & Assignments",
+    "lab": "Lab Manuals",
 }
 
 app = Flask(__name__)
@@ -154,7 +195,6 @@ def close_db(_exc):
 _db_initialized = False
 
 def init_db():
-    # 👉 Nayi Line 2 & 3:
     global _db_initialized
     if _db_initialized:
         return
@@ -179,7 +219,12 @@ def init_db():
             type TEXT NOT NULL,
             filename TEXT NOT NULL,
             original_name TEXT NOT NULL,
-            uploaded_at TEXT NOT NULL
+            uploaded_at TEXT NOT NULL,
+            branch TEXT DEFAULT 'CSE',
+            contributor_name TEXT DEFAULT 'Anonymous',
+            contributor_contact TEXT,
+            status TEXT DEFAULT 'approved',
+            downloads INTEGER DEFAULT 0
         );
         """,
         """
@@ -189,6 +234,18 @@ def init_db():
             attempted_at TEXT NOT NULL,
             success INTEGER NOT NULL
         );
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS feedback_requests (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            category TEXT NOT NULL,
+            name TEXT,
+            contact TEXT,
+            subject TEXT,
+            branch TEXT,
+            message TEXT NOT NULL,
+            created_at TEXT NOT NULL
+        );
         """
     ]
     for stmt in statements:
@@ -197,8 +254,26 @@ def init_db():
         except Exception as e:
             print("[setup] Table create notice:", e)
 
+    migration_statements = [
+        "ALTER TABLE papers ADD COLUMN code TEXT",
+        "ALTER TABLE papers ADD COLUMN branch TEXT DEFAULT 'CSE'",
+        "ALTER TABLE papers ADD COLUMN contributor_name TEXT DEFAULT 'Anonymous'",
+        "ALTER TABLE papers ADD COLUMN contributor_contact TEXT",
+        "ALTER TABLE papers ADD COLUMN status TEXT DEFAULT 'approved'",
+        "ALTER TABLE papers ADD COLUMN downloads INTEGER DEFAULT 0",
+    ]
+    for m_stmt in migration_statements:
+        try:
+            db.execute(m_stmt)
+        except Exception:
+            pass
+
     try:
-        db.execute("ALTER TABLE papers ADD COLUMN code TEXT")
+        db.execute("UPDATE papers SET branch = 'CSE' WHERE branch IS NULL OR branch = ''")
+        db.execute("UPDATE papers SET status = 'approved' WHERE status IS NULL OR status = ''")
+        db.execute("UPDATE papers SET contributor_name = 'Campus Community' WHERE contributor_name IS NULL OR contributor_name = ''")
+        db.execute("UPDATE papers SET downloads = 0 WHERE downloads IS NULL")
+        db.commit()
     except Exception:
         pass
 
@@ -212,16 +287,9 @@ def init_db():
                 (ADMIN_EMAIL_DEFAULT, hashed, now_time),
             )
             print(f"[setup] Admin created -> {ADMIN_EMAIL_DEFAULT}")
-        else:
-            db.execute(
-                "UPDATE admins SET password_hash = ? WHERE id = ?",
-                (hashed, admin_row["id"]),
-            )
-            print(f"[setup] Admin password synced for -> {ADMIN_EMAIL_DEFAULT}")
     except Exception as e:
-        print("[setup] Admin sync notice:", e)
+        print("[setup] Admin check notice:", e)
 
-    # 👉 Nayi Line 4:
     _db_initialized = True
 
 
@@ -280,6 +348,8 @@ def allowed_file(filename):
 # ---------------------------------------------------------------------------
 
 @app.route("/")
+@app.route("/admin")
+@app.route("/admin/")
 def index():
     return render_template("index.html")
 
@@ -355,61 +425,97 @@ def change_password():
 
 
 # ---------------------------------------------------------------------------
-# Papers API
+# Papers API & Public Submission
 # ---------------------------------------------------------------------------
 
 @app.route("/api/papers")
 def list_papers():
+    branch = request.args.get("branch", "").strip().lower()
     semester = request.args.get("semester", type=int)
-    type_ = request.args.get("type")
+    type_ = request.args.get("type", "").strip().lower()
     q = request.args.get("q", "").strip()
+    status_filter = request.args.get("status", "approved").strip().lower()
+
+    is_admin = bool(session.get("admin_id"))
+
+    # Regular visitors can ONLY view approved papers
+    if not is_admin or status_filter not in ["pending", "all", "approved"]:
+        status_filter = "approved"
 
     query = "SELECT * FROM papers WHERE 1=1"
     params = []
 
+    if status_filter != "all":
+        query += " AND status = ?"
+        params.append(status_filter)
+
+    if branch and branch != "all":
+        query += " AND LOWER(branch) = LOWER(?)"
+        params.append(branch)
+
     if semester:
         query += " AND semester = ?"
         params.append(semester)
+
     if type_ and type_ in TYPES:
         query += " AND type = ?"
         params.append(type_)
+
     if q:
-        query += " AND (title LIKE ? OR subject LIKE ?)"
+        query += " AND (title LIKE ? OR subject LIKE ? OR code LIKE ? OR contributor_name LIKE ?)"
         like = f"%{q}%"
-        params.extend([like, like])
+        params.extend([like, like, like, like])
 
     query += " ORDER BY uploaded_at DESC"
 
     db = get_db()
     rows = db.execute(query, params).fetchall()
     papers = [dict(row) for row in rows]
-    return jsonify({"papers": papers, "types": TYPES, "semesters": SEMESTERS})
+
+    # Calculate pending count for admin badge
+    pending_count = 0
+    if is_admin:
+        try:
+            p_row = db.execute("SELECT COUNT(*) as cnt FROM papers WHERE status = 'pending'").fetchone()
+            pending_count = p_row["cnt"] if p_row else 0
+        except Exception:
+            pending_count = 0
+
+    return jsonify({
+        "papers": papers,
+        "types": TYPES,
+        "branches": BRANCHES,
+        "semesters": SEMESTERS,
+        "pending_count": pending_count,
+    })
 
 
 @app.route("/api/upload", methods=["POST"])
-@admin_required
 def upload_paper():
     title = (request.form.get("title") or "").strip()
     subject = (request.form.get("subject") or "").strip()
     code = (request.form.get("code") or "").strip() or None
     semester = request.form.get("semester", type=int)
-    type_ = request.form.get("type")
+    type_ = (request.form.get("type") or "").strip().lower()
+    branch = (request.form.get("branch") or "CSE").strip()
+    contributor_name = (request.form.get("contributor_name") or "Anonymous").strip()
+    contributor_contact = (request.form.get("contributor_contact") or "").strip()
     file = request.files.get("file")
 
     if not title or not subject or not semester or not type_:
-        return jsonify({"error": "All fields are required."}), 400
+        return jsonify({"error": "Title, Subject, Semester, and Type are required."}), 400
     if semester not in SEMESTERS:
-        return jsonify({"error": "Invalid semester."}), 400
+        return jsonify({"error": "Invalid semester (must be 1 to 8)."}), 400
     if type_ not in TYPES:
         return jsonify({"error": "Invalid resource type."}), 400
     if not file or file.filename == "":
         return jsonify({"error": "A file is required."}), 400
     if not allowed_file(file.filename):
-        return jsonify({"error": "Unsupported file type."}), 400
+        return jsonify({"error": "Unsupported file type. Allowed: PDF, Word, PPT, Images."}), 400
 
     safe_name = secure_filename(file.filename)
 
-    # Cloudinary Upload
+    # Cloudinary Upload if configured
     if CLOUDINARY_CLOUD_NAME and CLOUDINARY_API_KEY:
         try:
             upload_result = cloudinary.uploader.upload(
@@ -426,14 +532,94 @@ def upload_paper():
         file.save(os.path.join(UPLOAD_DIR, stored_name))
         stored_file_ref = stored_name
 
+    # Determine moderation status:
+    # Admins get immediate publishing; community submissions go to moderation
+    is_admin = bool(session.get("admin_id"))
+    status = "approved" if is_admin else "pending"
+
     db = get_db()
     db.execute(
-        """INSERT INTO papers (title, subject, code, semester, type, filename, original_name, uploaded_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
-        (title, subject, code, semester, type_, stored_file_ref, safe_name, datetime.now(timezone.utc).isoformat()),
+        """INSERT INTO papers (
+            title, subject, code, semester, type, filename, original_name,
+            uploaded_at, branch, contributor_name, contributor_contact, status, downloads
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)""",
+        (
+            title, subject, code, semester, type_, stored_file_ref, safe_name,
+            datetime.now(timezone.utc).isoformat(), branch, contributor_name,
+            contributor_contact, status
+        ),
     )
     db.commit()
-    return jsonify({"ok": True})
+
+    if status == "approved":
+        msg = "Resource published to the hub immediately!"
+    else:
+        msg = f"Thank you, {contributor_name}! Your resource has been submitted for verification. It will appear on the hub once approved by an admin."
+
+    return jsonify({"ok": True, "status": status, "message": msg, "contributor": contributor_name})
+
+
+@app.route("/api/contributors")
+def list_contributors():
+    db = get_db()
+    try:
+        rows = db.execute(
+            """SELECT contributor_name, COUNT(*) as count,
+                      GROUP_CONCAT(DISTINCT branch) as branches
+               FROM papers
+               WHERE status = 'approved' AND contributor_name IS NOT NULL
+                 AND contributor_name != '' AND LOWER(contributor_name) != 'anonymous'
+               GROUP BY contributor_name
+               ORDER BY count DESC
+               LIMIT 12"""
+        ).fetchall()
+        contributors = [dict(r) for r in rows]
+    except Exception:
+        contributors = []
+    return jsonify({"contributors": contributors})
+
+
+# ---------------------------------------------------------------------------
+# Admin Moderation API
+# ---------------------------------------------------------------------------
+
+@app.route("/api/admin/pending")
+@admin_required
+def get_pending_papers():
+    db = get_db()
+    rows = db.execute("SELECT * FROM papers WHERE status = 'pending' ORDER BY uploaded_at DESC").fetchall()
+    return jsonify({"papers": [dict(r) for r in rows]})
+
+
+@app.route("/api/admin/approve/<int:paper_id>", methods=["POST"])
+@admin_required
+def approve_paper(paper_id):
+    db = get_db()
+    db.execute("UPDATE papers SET status = 'approved' WHERE id = ?", (paper_id,))
+    db.commit()
+    return jsonify({"ok": True, "message": "Resource approved and published!"})
+
+
+@app.route("/api/admin/reject/<int:paper_id>", methods=["POST"])
+@admin_required
+def reject_paper(paper_id):
+    db = get_db()
+    paper = db.execute("SELECT * FROM papers WHERE id = ?", (paper_id,)).fetchone()
+    if not paper:
+        return jsonify({"error": "Resource not found."}), 404
+
+    filename = paper["filename"]
+    if not filename.startswith("http"):
+        file_path = os.path.join(UPLOAD_DIR, filename)
+        if os.path.exists(file_path):
+            try:
+                os.remove(file_path)
+            except Exception:
+                pass
+
+    db.execute("DELETE FROM papers WHERE id = ?", (paper_id,))
+    db.commit()
+    return jsonify({"ok": True, "message": "Submission rejected and removed."})
 
 
 @app.route("/api/papers/<int:paper_id>", methods=["PUT"])
@@ -448,6 +634,8 @@ def update_paper(paper_id):
     title = (data.get("title") or "").strip()
     subject = (data.get("subject") or "").strip()
     code = (data.get("code") or "").strip() or None
+    branch = (data.get("branch") or paper.get("branch") or "CSE").strip()
+    contributor_name = (data.get("contributor_name") or paper.get("contributor_name") or "Anonymous").strip()
     semester = data.get("semester")
     type_ = data.get("type")
 
@@ -464,9 +652,9 @@ def update_paper(paper_id):
         return jsonify({"error": "Invalid resource type."}), 400
 
     db.execute(
-        """UPDATE papers SET title = ?, subject = ?, code = ?, semester = ?, type = ?
+        """UPDATE papers SET title = ?, subject = ?, code = ?, semester = ?, type = ?, branch = ?, contributor_name = ?
            WHERE id = ?""",
-        (title, subject, code, semester, type_, paper_id),
+        (title, subject, code, semester, type_, branch, contributor_name, paper_id),
     )
     db.commit()
     return jsonify({"ok": True})
@@ -484,25 +672,74 @@ def delete_paper(paper_id):
     if not filename.startswith("http"):
         file_path = os.path.join(UPLOAD_DIR, filename)
         if os.path.exists(file_path):
-            os.remove(file_path)
+            try:
+                os.remove(file_path)
+            except Exception:
+                pass
 
     db.execute("DELETE FROM papers WHERE id = ?", (paper_id,))
     db.commit()
     return jsonify({"ok": True})
 
 
-# 👉 NAYA DIRECT DOWNLOAD ROUTE (Poori file download hogi bina corrupt huye)
-# 👉 DIRECT DOWNLOAD (Ab seedha download hoga, browser me open nahi hoga)
+# ---------------------------------------------------------------------------
+# Feedback, Resource Requests & DMCA Notices
+# ---------------------------------------------------------------------------
+
+@app.route("/api/feedback", methods=["POST"])
+def submit_feedback():
+    data = request.get_json(silent=True) or {}
+    category = (data.get("category") or "feedback").strip()
+    message = (data.get("message") or "").strip()
+    name = (data.get("name") or "Anonymous").strip()
+    contact = (data.get("contact") or "").strip()
+    subject = (data.get("subject") or "").strip()
+    branch = (data.get("branch") or "").strip()
+
+    if not message:
+        return jsonify({"error": "Message or details are required."}), 400
+
+    db = get_db()
+    db.execute(
+        """INSERT INTO feedback_requests (category, name, contact, subject, branch, message, created_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?)""",
+        (category, name, contact, subject, branch, message, datetime.now(timezone.utc).isoformat()),
+    )
+    db.commit()
+    return jsonify({"ok": True, "message": "Thank you! Your request/notice has been submitted."})
+
+
+@app.route("/api/admin/feedback", methods=["GET"])
+@admin_required
+def list_feedback():
+    db = get_db()
+    rows = db.execute("SELECT * FROM feedback_requests ORDER BY created_at DESC LIMIT 50").fetchall()
+    return jsonify({"feedback": [dict(r) for r in rows]})
+
+
+@app.route("/api/admin/feedback/<int:item_id>", methods=["DELETE"])
+@admin_required
+def delete_feedback(item_id):
+    db = get_db()
+    db.execute("DELETE FROM feedback_requests WHERE id = ?", (item_id,))
+    db.commit()
+    return jsonify({"ok": True})
+
+
+# ---------------------------------------------------------------------------
+# Direct Download
+# ---------------------------------------------------------------------------
+
 @app.route("/api/download/<int:paper_id>")
 def download_paper(paper_id):
     db = get_db()
-    cur = db.execute("SELECT filename FROM papers WHERE id = ?", (paper_id,))
+    cur = db.execute("SELECT filename, original_name, title FROM papers WHERE id = ?", (paper_id,))
     paper = cur.fetchone()
     if not paper:
-        return jsonify({"error": "Paper not found"}), 404
+        return jsonify({"error": "Resource not found"}), 404
 
     try:
-        db.execute("UPDATE papers SET downloads = downloads + 1 WHERE id = ?", (paper_id,))
+        db.execute("UPDATE papers SET downloads = COALESCE(downloads, 0) + 1 WHERE id = ?", (paper_id,))
         db.commit()
     except Exception:
         pass
@@ -510,12 +747,12 @@ def download_paper(paper_id):
     file_url = paper["filename"]
 
     if file_url.startswith("http://") or file_url.startswith("https://"):
-        # 👇 Yeh line Cloudinary ko bolti hai ki browser me open mat karo, seedha download karo:
         if "/upload/" in file_url and "fl_attachment" not in file_url:
             file_url = file_url.replace("/upload/", "/upload/fl_attachment/")
         return redirect(file_url)
 
-    return send_from_directory(UPLOAD_DIR, file_url, as_attachment=True)
+    safe_download_name = paper.get("original_name") or f"{paper['title']}.pdf"
+    return send_from_directory(UPLOAD_DIR, file_url, as_attachment=True, download_name=safe_download_name)
 
 
 @app.route("/uploads/<path:filename>")
@@ -533,5 +770,5 @@ with app.app_context():
     init_db()
 
 if __name__ == "__main__":
-    debug_mode = os.environ.get("FLASK_DEBUG", "0") == "1"
+    debug_mode = os.environ.get("FLASK_DEBUG", "1") == "1"
     app.run(debug=debug_mode, port=5000)

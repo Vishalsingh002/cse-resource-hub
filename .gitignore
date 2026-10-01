@@ -4,6 +4,8 @@
 # The database holds the hashed admin password + all paper metadata.
 # Keep it out of git so a fresh clone doesn't carry over your real data.
 database.db
+*.db-shm
+*.db-wal
 
 # Uploaded files shouldn't be tracked by git either.
 uploads/*

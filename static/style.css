@@ -1789,15 +1789,13 @@ button {
   letter-spacing: 0.5px;
   color: #64748b;
 }
-  color: #64748b;
-}
 
 .admin-user-email {
   font-size: 12px;
   font-weight: 600;
   color: #e2e8f0;
   font-family: var(--font-mono);
-  max-width: 170px;
+  max-width: 240px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -2884,6 +2882,7 @@ button {
   display: flex;
   flex-direction: column;
   gap: 14px;
+  flex: 1;
 }
 
 .form-group-pro {
@@ -2900,29 +2899,39 @@ button {
 
 /* FIXED: Input with Icons (Specificity Override) */
 .input-with-icon {
-  position: relative;
-  width: 100%;
-  display: flex;
-  align-items: center;
+  position: relative !important;
+  width: 100% !important;
+  display: flex !important;
+  align-items: center !important;
 }
 
 .input-with-icon .input-icon-left {
-  position: absolute;
-  left: 12px;
-  top: 50%;
-  transform: translateY(-50%);
-  color: #64748b;
-  pointer-events: none;
-  z-index: 5;
+  position: absolute !important;
+  left: 13px !important;
+  top: 50% !important;
+  transform: translateY(-50%) !important;
+  color: #64748b !important;
+  pointer-events: none !important;
+  z-index: 10 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
 }
 
 .modal .input-with-icon input.input-pro,
+.modal-admin-pro .input-with-icon input,
+.modal .input-with-icon input,
 .input-with-icon input.input-pro,
 .input-with-icon input {
   width: 100% !important;
   box-sizing: border-box !important;
-  padding: 10px 40px 10px 38px !important;
-  background: rgba(0, 0, 0, 0.35) !important;
+  padding-left: 38px !important;
+  padding-right: 38px !important;
+  padding-top: 10px !important;
+  padding-bottom: 10px !important;
+  height: 42px !important;
+  line-height: normal !important;
+  background: rgba(0, 0, 0, 0.4) !important;
   border: 1px solid rgba(255, 255, 255, 0.12) !important;
   border-radius: 8px !important;
   color: #ffffff !important;
@@ -2933,32 +2942,36 @@ button {
 }
 
 .modal .input-with-icon input.input-pro:focus,
-.input-with-icon input.input-pro:focus {
+.modal-admin-pro .input-with-icon input:focus,
+.modal .input-with-icon input:focus,
+.input-with-icon input.input-pro:focus,
+.input-with-icon input:focus {
   border-color: #6366f1 !important;
   box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.25) !important;
-  background: rgba(0, 0, 0, 0.55) !important;
+  background: rgba(0, 0, 0, 0.6) !important;
 }
 
 .input-with-icon .btn-toggle-eye {
-  position: absolute;
-  right: 10px;
-  top: 50%;
-  transform: translateY(-50%);
-  background: transparent;
-  border: none;
-  color: #64748b;
-  cursor: pointer;
-  padding: 4px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 4px;
-  transition: color 0.15s ease;
-  z-index: 5;
+  position: absolute !important;
+  right: 8px !important;
+  top: 50% !important;
+  transform: translateY(-50%) !important;
+  background: transparent !important;
+  border: none !important;
+  color: #64748b !important;
+  cursor: pointer !important;
+  padding: 6px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border-radius: 6px !important;
+  transition: color 0.15s ease, background 0.15s ease !important;
+  z-index: 10 !important;
 }
 
 .input-with-icon .btn-toggle-eye:hover {
-  color: #e2e8f0;
+  color: #ffffff !important;
+  background: rgba(255, 255, 255, 0.08) !important;
 }
 
 .password-rule-text {
@@ -2983,7 +2996,7 @@ button {
   cursor: pointer;
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   box-shadow: 0 4px 14px rgba(79, 70, 229, 0.35);
-  margin-top: 4px;
+  margin-top: auto;
 }
 
 .btn-account-save-pro:hover {

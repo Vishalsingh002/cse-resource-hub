@@ -13,7 +13,7 @@
   <link
     href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap"
     rel="stylesheet">
-  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=18" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=20" />
 </head>
 
 <body>
@@ -650,10 +650,10 @@
               <div class="form-group-pro">
                 <label for="currentPassword">Current Password <span class="req">*</span></label>
                 <div class="input-with-icon">
-                  <svg class="input-icon-left" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                  <svg class="input-icon-left" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
                   <input type="password" id="currentPassword" required placeholder="Enter current password" class="input-pro" autocomplete="current-password" />
-                  <button type="button" class="btn-toggle-eye" onclick="togglePasswordVisibility('currentPassword', this)" title="Show/Hide Password">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                  <button type="button" class="btn-toggle-eye" onclick="togglePasswordVisibility('currentPassword', this)" title="Show/Hide Password" aria-label="Toggle password visibility">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
                   </button>
                 </div>
               </div>
@@ -661,13 +661,24 @@
               <div class="form-group-pro">
                 <label for="newPassword">New Password <span class="req">*</span></label>
                 <div class="input-with-icon">
-                  <svg class="input-icon-left" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="7.5" cy="15.5" r="4.5"/><path d="M11 12l9-9M17 3l4 4M14 6l2 2"/></svg>
+                  <svg class="input-icon-left" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="7.5" cy="15.5" r="4.5"/><path d="M11 12l9-9M17 3l4 4M14 6l2 2"/></svg>
                   <input type="password" id="newPassword" required minlength="8" placeholder="At least 8 characters" class="input-pro" autocomplete="new-password" />
-                  <button type="button" class="btn-toggle-eye" onclick="togglePasswordVisibility('newPassword', this)" title="Show/Hide Password">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                  <button type="button" class="btn-toggle-eye" onclick="togglePasswordVisibility('newPassword', this)" title="Show/Hide Password" aria-label="Toggle password visibility">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
                   </button>
                 </div>
-                <span class="password-rule-text">&bull; Minimum 8 characters required</span>
+              </div>
+
+              <div class="form-group-pro">
+                <label for="confirmNewPassword">Confirm New Password <span class="req">*</span></label>
+                <div class="input-with-icon">
+                  <svg class="input-icon-left" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                  <input type="password" id="confirmNewPassword" required minlength="8" placeholder="Re-enter new password" class="input-pro" autocomplete="new-password" />
+                  <button type="button" class="btn-toggle-eye" onclick="togglePasswordVisibility('confirmNewPassword', this)" title="Show/Hide Password" aria-label="Toggle password visibility">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                  </button>
+                </div>
+                <div class="password-rule-text">&bull; Minimum 8 characters required</div>
               </div>
 
               <p id="changePasswordMsg" class="form-error-msg hidden"></p>
@@ -894,7 +905,7 @@
   </script>
 
   <!-- Main JavaScript -->
-  <script src="{{ url_for('static', filename='script.js') }}?v=25"></script>
+  <script src="{{ url_for('static', filename='script.js') }}?v=26"></script>
 </body>
 
 </html>

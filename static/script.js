@@ -2315,13 +2315,31 @@ function bindEvents() {
   if (changePasswordForm) {
     changePasswordForm.addEventListener("submit", async (e) => {
       e.preventDefault();
-      const current = el("currentPassword").value;
-      const newPwd = el("newPassword").value;
+      const current = (el("currentPassword")?.value || "").trim();
+      const newPwd = el("newPassword")?.value || "";
+      const confirmPwd = el("confirmNewPassword") ? el("confirmNewPassword").value : newPwd;
       const msgEl = el("changePasswordMsg");
       const submitBtn = el("btnChangePasswordSubmit");
       const origContent = submitBtn ? submitBtn.innerHTML : "Save New Password";
 
       if (msgEl) msgEl.classList.add("hidden");
+
+      if (newPwd.length < 8) {
+        if (msgEl) {
+          msgEl.textContent = "New password must be at least 8 characters.";
+          msgEl.classList.remove("hidden");
+        }
+        return;
+      }
+
+      if (newPwd !== confirmPwd) {
+        if (msgEl) {
+          msgEl.textContent = "New passwords do not match. Please re-enter.";
+          msgEl.classList.remove("hidden");
+        }
+        return;
+      }
+
       if (submitBtn) {
         submitBtn.disabled = true;
         submitBtn.innerHTML = `<span>Updating Password...</span>`;

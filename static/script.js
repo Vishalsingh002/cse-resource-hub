@@ -396,6 +396,7 @@ const state = {
   types: DEFAULT_TYPES,
   semesters: [1, 2, 3, 4, 5, 6, 7, 8],
   isAdmin: false,
+  adminEmail: "evior0364@gmail.com",
   adminDiscovered: false,
   pendingCount: 0,
   requestsCount: 0,
@@ -1261,6 +1262,7 @@ async function checkSession() {
     const data = await api("/api/session");
     state.isAdmin = Boolean(data.logged_in || data.loggedIn);
     if (data.email) state.adminEmail = data.email;
+    else if (state.isAdmin && !state.adminEmail) state.adminEmail = "evior0364@gmail.com";
     updateAdminUI();
   } catch (e) {
     state.isAdmin = false;
@@ -1272,11 +1274,10 @@ function updateAdminUI() {
   if (el("adminBtn")) {
     el("adminBtn").classList.toggle("hidden", state.isAdmin || !state.adminDiscovered);
   }
-  if (state.adminEmail) {
-    if (el("adminDisplayEmail")) el("adminDisplayEmail").textContent = state.adminEmail;
-    if (el("adminAvatarInitials")) el("adminAvatarInitials").textContent = getInitials(state.adminEmail);
-    if (el("accountAdminEmail")) el("accountAdminEmail").textContent = state.adminEmail;
-  }
+  const email = state.adminEmail || "evior0364@gmail.com";
+  if (el("adminDisplayEmail")) el("adminDisplayEmail").textContent = email;
+  if (el("adminAvatarInitials")) el("adminAvatarInitials").textContent = getInitials(email);
+  if (el("accountAdminEmail")) el("accountAdminEmail").textContent = email;
   updatePendingBadge();
   if (state.viewMode === "folders") renderFolderDirectory();
   else renderCardsView();
@@ -2317,7 +2318,14 @@ function bindEvents() {
       const current = el("currentPassword").value;
       const newPwd = el("newPassword").value;
       const msgEl = el("changePasswordMsg");
+      const submitBtn = el("btnChangePasswordSubmit");
+      const origContent = submitBtn ? submitBtn.innerHTML : "Save New Password";
+
       if (msgEl) msgEl.classList.add("hidden");
+      if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = `<span>Updating Password...</span>`;
+      }
 
       try {
         const auth = getFirebaseAuth();
@@ -2339,9 +2347,29 @@ function bindEvents() {
           msgEl.textContent = err.message;
           msgEl.classList.remove("hidden");
         }
+      } finally {
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = origContent;
+        }
       }
     });
   }
+
+  // Password Visibility Eye Toggle Helper
+  window.togglePasswordVisibility = function(inputId, btnEl) {
+    const inp = el(inputId);
+    if (!inp) return;
+    const isPass = inp.type === "password";
+    inp.type = isPass ? "text" : "password";
+    if (btnEl) {
+      btnEl.innerHTML = isPass ? `
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+      ` : `
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+      `;
+    }
+  };
 
   // Admin Quick Password Reset Email (Security Tab)
   const adminSendResetBtn = el("adminSendResetBtn");

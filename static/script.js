@@ -455,10 +455,14 @@ function showToast(message, type = "success") {
 // API Helper
 // ---------------------------------------------------------------------
 async function api(path, options = {}) {
+  const headers = {};
+  if (!(options.body instanceof FormData)) {
+    headers["Content-Type"] = "application/json";
+  }
   const res = await fetch(path, {
-    headers: { "Content-Type": "application/json" },
     credentials: "same-origin",
     ...options,
+    headers: { ...headers, ...(options.headers || {}) },
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.error || "Request failed.");
@@ -1310,6 +1314,152 @@ function openEditModal(id) {
   openModal("editModal");
 }
 
+// ---------------------------------------------------------------------
+// In-Portal Document & Image Inspector Engine (Admin Moderation)
+// ---------------------------------------------------------------------
+let previewImageZoom = 1;
+let previewImageRotate = 0;
+
+function applyImageTransform() {
+  const img = el("previewImageEl");
+  const lvl = el("previewZoomLevel");
+  if (img) {
+    img.style.transform = `scale(${previewImageZoom}) rotate(${previewImageRotate}deg)`;
+  }
+  if (lvl) {
+    lvl.textContent = `${Math.round(previewImageZoom * 100)}%`;
+  }
+}
+
+function resetImageInspectorState() {
+  previewImageZoom = 1;
+  previewImageRotate = 0;
+  applyImageTransform();
+}
+
+window.openAdminDocPreview = function(paperId, customDoc = null) {
+  let doc = customDoc;
+  if (!doc && paperId) {
+    doc = state.pendingPapers.find((p) => String(p.id) === String(paperId));
+  }
+  if (!doc) {
+    showToast("Document details not found.", "error");
+    return;
+  }
+
+  const filename = doc.filename || doc.attachment || "";
+  const previewUrl = filename.startsWith("http") ? filename : `/uploads/${encodeURIComponent(filename)}`;
+
+  const ext = (doc.original_name || filename).split(".").pop().toLowerCase().split("?")[0];
+  const isImage = ["png", "jpg", "jpeg", "webp", "gif", "bmp"].includes(ext);
+  const isPdf = ext === "pdf";
+
+  // Populate Header
+  const titleEl = el("previewDocTitle");
+  if (titleEl) titleEl.textContent = doc.title || doc.subject || "Academic Document";
+
+  const subEl = el("previewDocSubject");
+  if (subEl) {
+    const codeStr = doc.code ? ` (${doc.code})` : "";
+    subEl.textContent = (doc.subject || "Resource Review") + codeStr;
+  }
+
+  const contribEl = el("previewDocContributor");
+  if (contribEl) {
+    contribEl.textContent = doc.contributor_name || doc.name || "Anonymous Contributor";
+  }
+
+  const branchEl = el("previewBranchBadge");
+  if (branchEl) {
+    branchEl.textContent = doc.branch || "CSE";
+    branchEl.style.display = doc.branch ? "inline-flex" : "none";
+  }
+
+  const semEl = el("previewSemBadge");
+  if (semEl) {
+    semEl.textContent = doc.semester ? `Semester ${doc.semester}` : "";
+    semEl.style.display = doc.semester ? "inline-flex" : "none";
+  }
+
+  const typeEl = el("previewTypeBadge");
+  if (typeEl) {
+    const typeLabel = (TYPE_SHORT && TYPE_SHORT[doc.type]) ? TYPE_SHORT[doc.type] : (doc.type || "RESOURCE").toUpperCase();
+    typeEl.textContent = typeLabel;
+  }
+
+  const fmtBadge = el("previewFormatBadge");
+  if (fmtBadge) {
+    fmtBadge.className = "preview-format-chip";
+    if (isPdf) {
+      fmtBadge.classList.add("chip-pdf");
+      fmtBadge.textContent = "📄 PDF Document";
+    } else if (isImage) {
+      fmtBadge.classList.add("chip-image");
+      fmtBadge.textContent = "🖼️ High-Res Image";
+    } else {
+      fmtBadge.classList.add("chip-doc");
+      fmtBadge.textContent = `📑 ${ext.toUpperCase() || "File"}`;
+    }
+  }
+
+  // External tab link
+  const extLink = el("previewExtLink");
+  if (extLink) extLink.href = previewUrl;
+
+  // Viewports Management
+  const pdfContainer = el("previewPdfContainer");
+  const imgContainer = el("previewImageContainer");
+  const fallbackContainer = el("previewFallbackContainer");
+  const imgControls = el("previewImageControls");
+
+  if (pdfContainer) pdfContainer.classList.add("hidden");
+  if (imgContainer) imgContainer.classList.add("hidden");
+  if (fallbackContainer) fallbackContainer.classList.add("hidden");
+  if (imgControls) imgControls.style.display = "none";
+
+  if (isPdf) {
+    if (pdfContainer) pdfContainer.classList.remove("hidden");
+    const frame = el("previewPdfFrame");
+    if (frame) frame.src = previewUrl;
+  } else if (isImage) {
+    if (imgContainer) imgContainer.classList.remove("hidden");
+    if (imgControls) imgControls.style.display = "inline-flex";
+    const imgEl = el("previewImageEl");
+    if (imgEl) imgEl.src = previewUrl;
+    resetImageInspectorState();
+  } else {
+    if (fallbackContainer) fallbackContainer.classList.remove("hidden");
+    const dBtn = el("previewDownloadBtn");
+    if (dBtn) dBtn.href = previewUrl;
+  }
+
+  // Bottom Decision Toolbar (Approve / Reject)
+  const decisionToolbar = el("previewDecisionToolbar");
+  if (decisionToolbar) {
+    if (doc.id && state.pendingPapers.some((p) => String(p.id) === String(doc.id))) {
+      decisionToolbar.style.display = "flex";
+      const appBtn = el("previewApproveBtn");
+      const rejBtn = el("previewRejectBtn");
+      if (appBtn) {
+        appBtn.onclick = async () => {
+          closeModal("adminDocPreviewModal");
+          await approvePaper(doc.id);
+        };
+      }
+      if (rejBtn) {
+        rejBtn.onclick = async () => {
+          closeModal("adminDocPreviewModal");
+          await rejectPaper(doc.id);
+        };
+      }
+    } else {
+      decisionToolbar.style.display = "none";
+    }
+  }
+
+  openModal("adminDocPreviewModal");
+};
+
 async function openModerationPanel() {
   openModal("moderationModal");
   switchAdminTab("pending");
@@ -1375,6 +1525,10 @@ function renderPendingList() {
     }) : "Recent";
     const typeLabel = (TYPE_SHORT && TYPE_SHORT[p.type]) ? TYPE_SHORT[p.type] : (p.type || "RESOURCE").toUpperCase();
 
+    const ext = (p.original_name || p.filename || "").split('.').pop().toLowerCase().split('?')[0];
+    const isImage = ["png", "jpg", "jpeg", "webp", "gif", "bmp"].includes(ext);
+    const isPdf = ext === "pdf";
+
     card.innerHTML = `
       <div class="pending-card-header">
         <div class="pending-badge-group">
@@ -1393,6 +1547,29 @@ function renderPendingList() {
         </div>
       </div>
 
+      ${isImage ? `
+        <div class="pending-card-thumb" data-inspect-id="${p.id}" title="Click to inspect full image">
+          <img src="${previewUrl}" alt="${escapeHtml(p.title)}" loading="lazy" />
+          <div class="thumb-inspect-badge">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+            Click to Inspect Image (${ext.toUpperCase()})
+          </div>
+        </div>
+      ` : (isPdf ? `
+        <div class="pending-card-pdf-strip" data-inspect-id="${p.id}" title="Click to open interactive PDF reader">
+          <div class="pdf-strip-left">
+            <span class="pdf-file-icon">📄</span>
+            <div class="pdf-strip-text">
+              <strong>${escapeHtml(p.original_name || p.filename || "Question Paper")}</strong>
+              <span>PDF Document &bull; Click to inspect questions &amp; pages</span>
+            </div>
+          </div>
+          <span class="pdf-inspect-btn-text">
+            Inspect PDF &rarr;
+          </span>
+        </div>
+      ` : "")}
+
       <div class="pending-contributor-row">
         <div class="contributor-mini-avatar">${getInitials(p.contributor_name || "ST")}</div>
         <div class="contributor-info-meta">
@@ -1403,10 +1580,15 @@ function renderPendingList() {
       </div>
 
       <div class="pending-actions-bar">
-        <a href="${previewUrl}" target="_blank" rel="noopener noreferrer" class="btn-pending-preview">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-          Preview Document
-        </a>
+        <div style="display: flex; align-items: center; gap: 6px;">
+          <button type="button" class="btn-pending-inspect" data-inspect-id="${p.id}">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+            Inspect ${isImage ? "Image" : (isPdf ? "PDF" : "Content")}
+          </button>
+          <a href="${previewUrl}" target="_blank" rel="noopener noreferrer" class="btn-pending-ext" title="Open original file in new window">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+          </a>
+        </div>
         <div class="pending-btn-right">
           <button class="btn-pending-reject" data-reject="${p.id}">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
@@ -1422,6 +1604,9 @@ function renderPendingList() {
     listEl.appendChild(card);
   });
 
+  listEl.querySelectorAll("[data-inspect-id]").forEach((btn) => {
+    btn.addEventListener("click", () => openAdminDocPreview(btn.dataset.inspectId));
+  });
   listEl.querySelectorAll("[data-approve]").forEach((btn) => {
     btn.addEventListener("click", () => approvePaper(btn.dataset.approve));
   });
@@ -1520,6 +1705,15 @@ function renderAdminRequestsList() {
         <p style="font-size:13px;color:#cbd5e1;margin:6px 0;line-height:1.5;">${escapeHtml(req.message)}</p>
       </div>
 
+      ${req.attachment ? `
+        <div style="margin: 2px 0 6px 0;">
+          <button type="button" class="btn-request-attachment" data-req-inspect="${req.id}">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+            Inspect Attached ${req.attachment.toLowerCase().endsWith('.pdf') ? 'PDF Document' : 'Photo / Screenshot'}
+          </button>
+        </div>
+      ` : ""}
+
       <div class="pending-contributor-row">
         <div class="contributor-mini-avatar" style="background: rgba(245, 158, 11, 0.2); color: #fbbf24;">${getInitials(req.name || "ST")}</div>
         <div class="contributor-info-meta">
@@ -1534,6 +1728,24 @@ function renderAdminRequestsList() {
       </div>
     `;
     listEl.appendChild(card);
+  });
+
+  listEl.querySelectorAll("[data-req-inspect]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const item = state.feedbackRequests.find((r) => String(r.id) === String(btn.dataset.reqInspect));
+      if (!item || !item.attachment) return;
+      openAdminDocPreview(null, {
+        title: item.subject || "Student Request Attachment",
+        subject: item.category.replace('_', ' ').toUpperCase(),
+        branch: item.branch || "",
+        semester: "",
+        type: "REQUEST",
+        filename: item.attachment,
+        original_name: item.attachment,
+        contributor_name: item.name || "Student",
+        isRequest: true
+      });
+    });
   });
 
   listEl.querySelectorAll("[data-resolve-req]").forEach((btn) => {
@@ -1755,13 +1967,43 @@ function bindEvents() {
   const tabAccount = el("adminTabAccount");
   if (tabAccount) tabAccount.addEventListener("click", () => switchAdminTab("account"));
 
+  // Document Inspector Zoom & Rotate Controls
+  const zoomIn = el("previewZoomInBtn");
+  if (zoomIn) {
+    zoomIn.addEventListener("click", () => {
+      previewImageZoom = Math.min(3.5, Number((previewImageZoom + 0.25).toFixed(2)));
+      applyImageTransform();
+    });
+  }
+
+  const zoomOut = el("previewZoomOutBtn");
+  if (zoomOut) {
+    zoomOut.addEventListener("click", () => {
+      previewImageZoom = Math.max(0.4, Number((previewImageZoom - 0.25).toFixed(2)));
+      applyImageTransform();
+    });
+  }
+
+  const rotateBtn = el("previewRotateBtn");
+  if (rotateBtn) {
+    rotateBtn.addEventListener("click", () => {
+      previewImageRotate = (previewImageRotate + 90) % 360;
+      applyImageTransform();
+    });
+  }
+
+  const resetBtn = el("previewResetBtn");
+  if (resetBtn) {
+    resetBtn.addEventListener("click", resetImageInspectorState);
+  }
+
   // Modal close handlers
   document.querySelectorAll("[data-close]").forEach((btn) => {
     btn.addEventListener("click", () => closeModal(btn.dataset.close));
   });
   document.querySelectorAll(".modal-overlay").forEach((overlay) => {
     overlay.addEventListener("click", (e) => {
-      if (e.target === overlay) overlay.classList.add("hidden");
+      if (e.target === overlay) closeModal(overlay.id);
     });
   });
 
@@ -1899,20 +2141,42 @@ function bindEvents() {
       const statusEl = el("requestStatusMsg");
       if (statusEl) statusEl.classList.add("hidden");
 
-      const payload = {
-        category: el("requestCategory").value,
-        name: el("requestName").value.trim(),
-        contact: el("requestContact").value.trim(),
-        subject: el("requestSubject").value.trim(),
-        branch: el("requestBranch").value.trim(),
-        message: el("requestMessage").value.trim(),
-      };
+      const fileInput = el("requestFile");
+      const hasFile = fileInput && fileInput.files && fileInput.files.length > 0;
 
       try {
-        await api("/api/feedback", {
-          method: "POST",
-          body: JSON.stringify(payload),
-        });
+        if (hasFile) {
+          const formData = new FormData();
+          formData.append("category", el("requestCategory").value);
+          formData.append("name", el("requestName").value.trim());
+          formData.append("contact", el("requestContact").value.trim());
+          formData.append("subject", el("requestSubject").value.trim());
+          formData.append("branch", el("requestBranch").value.trim());
+          formData.append("message", el("requestMessage").value.trim());
+          formData.append("file", fileInput.files[0]);
+
+          const res = await fetch("/api/feedback", {
+            method: "POST",
+            credentials: "same-origin",
+            body: formData,
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || "Submission failed.");
+        } else {
+          const payload = {
+            category: el("requestCategory").value,
+            name: el("requestName").value.trim(),
+            contact: el("requestContact").value.trim(),
+            subject: el("requestSubject").value.trim(),
+            branch: el("requestBranch").value.trim(),
+            message: el("requestMessage").value.trim(),
+          };
+          await api("/api/feedback", {
+            method: "POST",
+            body: JSON.stringify(payload),
+          });
+        }
+
         showToast("Request received! We'll notify the student community.", "success");
         closeModal("requestModal");
         requestForm.reset();
@@ -2178,6 +2442,12 @@ window.openModal = function(id) {
 window.closeModal = function(id) {
   const m = el(id);
   if (m) m.classList.add("hidden");
+  if (id === "adminDocPreviewModal") {
+    const f = el("previewPdfFrame");
+    if (f) f.src = "about:blank";
+    const img = el("previewImageEl");
+    if (img) img.src = "";
+  }
 };
 
 window.openUploadModal = function() {

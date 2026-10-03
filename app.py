@@ -350,6 +350,7 @@ def init_db():
         "ALTER TABLE papers ADD COLUMN contributor_contact TEXT",
         "ALTER TABLE papers ADD COLUMN status TEXT DEFAULT 'approved'",
         "ALTER TABLE papers ADD COLUMN downloads INTEGER DEFAULT 0",
+        "ALTER TABLE feedback_requests ADD COLUMN attachment TEXT",
     ]
     for m_stmt in migration_statements:
         try:
@@ -843,7 +844,11 @@ def delete_paper(paper_id):
 
 @app.route("/api/feedback", methods=["POST"])
 def submit_feedback():
-    data = request.get_json(silent=True) or {}
+    if request.is_json:
+        data = request.get_json(silent=True) or {}
+    else:
+        data = request.form.to_dict()
+
     category = (data.get("category") or "feedback").strip()
     message = (data.get("message") or "").strip()
     name = (data.get("name") or "Anonymous").strip()
@@ -854,11 +859,31 @@ def submit_feedback():
     if not message:
         return jsonify({"error": "Message or details are required."}), 400
 
+    attachment_ref = None
+    if "file" in request.files:
+        file = request.files["file"]
+        if file and file.filename and allowed_file(file.filename):
+            safe_name = secure_filename(file.filename)
+            if cloudinary_configured:
+                try:
+                    res = cloudinary.uploader.upload(
+                        file,
+                        folder="academic_archive_requests",
+                        resource_type="auto"
+                    )
+                    attachment_ref = res.get("secure_url")
+                except Exception:
+                    pass
+            if not attachment_ref:
+                stored_name = f"req_{secrets.token_hex(6)}_{safe_name}"
+                file.save(os.path.join(UPLOAD_DIR, stored_name))
+                attachment_ref = stored_name
+
     db = get_db()
     db.execute(
-        """INSERT INTO feedback_requests (category, name, contact, subject, branch, message, created_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?)""",
-        (category, name, contact, subject, branch, message, datetime.now(timezone.utc).isoformat()),
+        """INSERT INTO feedback_requests (category, name, contact, subject, branch, message, attachment, created_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+        (category, name, contact, subject, branch, message, attachment_ref, datetime.now(timezone.utc).isoformat()),
     )
     db.commit()
     return jsonify({"ok": True, "message": "Thank you! Your request/notice has been submitted."})

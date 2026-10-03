@@ -13,7 +13,7 @@
   <link
     href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap"
     rel="stylesheet">
-  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=16" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=17" />
 </head>
 
 <body>
@@ -467,6 +467,11 @@
           placeholder="e.g. Please upload 2023 or 2024 End Term PYQ with solutions if anyone has it..."
           required></textarea>
 
+        <div class="request-attachment-row">
+          <label>Attach Sample / Photo / Syllabus <span class="optional">(optional PDF or Image)</span></label>
+          <input type="file" id="requestFile" accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx,.ppt,.pptx" />
+        </div>
+
         <p id="requestStatusMsg" class="form-error-msg hidden"></p>
         <button type="submit" class="btn-modal-action">Submit Request</button>
       </form>
@@ -717,6 +722,98 @@
     </div>
   </div>
 
+  <!-- ============================================================
+       MODAL 10: In-Portal Document & Image Inspector (Admin)
+       ============================================================ -->
+  <div id="adminDocPreviewModal" class="modal-overlay hidden modal-preview-overlay" role="dialog" aria-modal="true">
+    <div class="modal modal-preview-viewer">
+      <!-- Inspector Top Bar -->
+      <div class="preview-modal-header">
+        <div class="preview-meta-details">
+          <div class="preview-badge-row">
+            <span id="previewFormatBadge" class="preview-format-chip">PDF Document</span>
+            <span id="previewBranchBadge" class="pending-branch-badge">CSE</span>
+            <span id="previewTypeBadge" class="pending-type-badge">PYQ</span>
+            <span id="previewSemBadge" class="pending-sem-badge">Semester 4</span>
+          </div>
+          <h3 id="previewDocTitle" class="preview-doc-title">Document Title</h3>
+          <div class="preview-sub-info">
+            <span id="previewDocSubject" class="preview-sub-name">Operating Systems</span>
+            <span class="preview-divider">&bull;</span>
+            <span class="preview-contributor-info">Contributed by: <strong id="previewDocContributor">Student Name</strong></span>
+          </div>
+        </div>
+
+        <div class="preview-header-actions">
+          <div class="preview-zoom-controls" id="previewImageControls">
+            <button type="button" class="btn-preview-icon" id="previewZoomOutBtn" title="Zoom Out (-)">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
+            </button>
+            <span id="previewZoomLevel" class="preview-zoom-indicator">100%</span>
+            <button type="button" class="btn-preview-icon" id="previewZoomInBtn" title="Zoom In (+)">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
+            </button>
+            <button type="button" class="btn-preview-icon" id="previewRotateBtn" title="Rotate 90°">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+            </button>
+            <button type="button" class="btn-preview-icon" id="previewResetBtn" title="Reset Scale &amp; Rotation">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+            </button>
+          </div>
+          <a id="previewExtLink" href="#" target="_blank" rel="noopener noreferrer" class="btn-preview-icon btn-ext-link" title="Open in External Tab">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+          </a>
+          <button type="button" class="modal-close" data-close="adminDocPreviewModal">&times;</button>
+        </div>
+      </div>
+
+      <!-- Main Document / Image Stage -->
+      <div class="preview-stage-container" id="previewStageContainer">
+        <!-- PDF Viewport -->
+        <div id="previewPdfContainer" class="preview-viewport-item hidden">
+          <iframe id="previewPdfFrame" src="about:blank" class="preview-pdf-iframe" title="PDF Document Viewer"></iframe>
+        </div>
+
+        <!-- Image Viewport -->
+        <div id="previewImageContainer" class="preview-viewport-item hidden">
+          <div class="preview-image-scroll-stage" id="previewImageStage">
+            <img id="previewImageEl" src="" alt="Document Preview" class="preview-image-render" />
+          </div>
+        </div>
+
+        <!-- Fallback Viewport (Office Docs) -->
+        <div id="previewFallbackContainer" class="preview-viewport-item hidden">
+          <div class="preview-doc-fallback-box">
+            <div class="fallback-icon">📄</div>
+            <h4>Office Document File</h4>
+            <p>This file format (.docx, .ppt, etc.) cannot be previewed natively. You can open or download it below.</p>
+            <div class="fallback-actions">
+              <a id="previewDownloadBtn" href="#" target="_blank" class="btn-admin-action">Download / Open File</a>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Bottom Decision Toolbar -->
+      <div class="preview-decision-toolbar" id="previewDecisionToolbar">
+        <div class="preview-decision-info">
+          <span class="preview-safety-dot"></span>
+          <span>Review questions, handwriting clarity, and syllabus accuracy before publishing.</span>
+        </div>
+        <div class="preview-decision-btns">
+          <button type="button" id="previewRejectBtn" class="btn-pending-reject">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            Reject Submission
+          </button>
+          <button type="button" id="previewApproveBtn" class="btn-pending-approve">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+            Approve &amp; Publish Live
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Toast Notification Container -->
   <div id="toastContainer" class="toast-container" aria-live="polite"></div>
 
@@ -737,7 +834,7 @@
   </script>
 
   <!-- Main JavaScript -->
-  <script src="{{ url_for('static', filename='script.js') }}?v=23"></script>
+  <script src="{{ url_for('static', filename='script.js') }}?v=24"></script>
 </body>
 
 </html>

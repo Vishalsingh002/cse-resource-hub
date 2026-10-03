@@ -66,6 +66,95 @@ if CLOUDINARY_CLOUD_NAME and CLOUDINARY_API_KEY:
         secure=True,
     )
 
+# Firebase credentials
+FIREBASE_API_KEY = os.environ.get("FIREBASE_API_KEY", "").strip()
+FIREBASE_AUTH_DOMAIN = os.environ.get("FIREBASE_AUTH_DOMAIN", "").strip()
+FIREBASE_PROJECT_ID = os.environ.get("FIREBASE_PROJECT_ID", "").strip()
+FIREBASE_STORAGE_BUCKET = os.environ.get("FIREBASE_STORAGE_BUCKET", "").strip()
+FIREBASE_MESSAGING_SENDER_ID = os.environ.get("FIREBASE_MESSAGING_SENDER_ID", "").strip()
+FIREBASE_APP_ID = os.environ.get("FIREBASE_APP_ID", "").strip()
+FIREBASE_MEASUREMENT_ID = os.environ.get("FIREBASE_MEASUREMENT_ID", "").strip()
+FIREBASE_SERVICE_ACCOUNT_KEY = os.environ.get("FIREBASE_SERVICE_ACCOUNT_KEY", "").strip()
+
+# Initialize firebase-admin if service account exists or with project ID
+try:
+    import firebase_admin
+    from firebase_admin import credentials as fb_credentials
+    if not firebase_admin._apps:
+        local_sa = os.path.join(BASE_DIR, "serviceAccountKey.json")
+        if FIREBASE_SERVICE_ACCOUNT_KEY and os.path.exists(FIREBASE_SERVICE_ACCOUNT_KEY):
+            cred = fb_credentials.Certificate(FIREBASE_SERVICE_ACCOUNT_KEY)
+            firebase_admin.initialize_app(cred)
+            print("[firebase] Initialized with custom service account")
+        elif os.path.exists(local_sa):
+            cred = fb_credentials.Certificate(local_sa)
+            firebase_admin.initialize_app(cred)
+            print("[firebase] Initialized with local serviceAccountKey.json")
+        elif FIREBASE_PROJECT_ID:
+            firebase_admin.initialize_app(options={"projectId": FIREBASE_PROJECT_ID})
+            print(f"[firebase] Initialized with projectId: {FIREBASE_PROJECT_ID}")
+except Exception as _fb_err:
+    print("[firebase] Notice:", _fb_err)
+
+
+def verify_firebase_id_token(id_token):
+    """Verifies a Firebase ID token using firebase-admin SDK or Google's tokeninfo endpoint."""
+    if not id_token:
+        return None
+
+    # Method 1: Try firebase-admin SDK if apps are initialized
+    try:
+        import firebase_admin
+        from firebase_admin import auth as fb_auth
+        if firebase_admin._apps:
+            decoded = fb_auth.verify_id_token(id_token)
+            if decoded and decoded.get("email"):
+                return decoded.get("email").strip().lower()
+    except Exception as e:
+        print("[firebase-admin verify notice]:", e)
+
+    # Method 2: Google OAuth2 tokeninfo endpoint (pure HTTPS via urllib, zero extra credential files needed)
+    try:
+        import json
+        import urllib.request
+        token_url = f"https://oauth2.googleapis.com/tokeninfo?id_token={id_token}"
+        req = urllib.request.Request(token_url, headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"})
+        with urllib.request.urlopen(req, timeout=8) as resp:
+            if resp.status == 200:
+                data = json.loads(resp.read().decode("utf-8"))
+                email = data.get("email")
+                aud = data.get("aud")
+                if FIREBASE_PROJECT_ID and aud and aud != FIREBASE_PROJECT_ID:
+                    print(f"[firebase] Token aud mismatch: {aud} vs {FIREBASE_PROJECT_ID}")
+                    return None
+                if email:
+                    return email.strip().lower()
+    except Exception as e:
+        print("[google-tokeninfo verify notice]:", e)
+
+    # Method 3: Google Identity Toolkit accounts:lookup if FIREBASE_API_KEY is available
+    if FIREBASE_API_KEY:
+        try:
+            import json
+            import urllib.request
+            lookup_url = f"https://identitytoolkit.googleapis.com/v1/accounts:lookup?key={FIREBASE_API_KEY}"
+            post_body = json.dumps({"idToken": id_token}).encode("utf-8")
+            req = urllib.request.Request(
+                lookup_url,
+                data=post_body,
+                headers={"Content-Type": "application/json", "User-Agent": "Mozilla/5.0"}
+            )
+            with urllib.request.urlopen(req, timeout=8) as resp:
+                if resp.status == 200:
+                    data = json.loads(resp.read().decode("utf-8"))
+                    users = data.get("users", [])
+                    if users and users[0].get("email"):
+                        return users[0]["email"].strip().lower()
+        except Exception as e:
+            print("[identitytoolkit verify notice]:", e)
+
+    return None
+
 ADMIN_EMAIL_DEFAULT = os.environ.get("ADMIN_EMAIL", "admin@college.edu").strip().lower()
 ADMIN_PASSWORD_DEFAULT = os.environ.get("ADMIN_PASSWORD", "ChangeMe123!").strip()
 
@@ -347,11 +436,28 @@ def allowed_file(filename):
 # Page routes
 # ---------------------------------------------------------------------------
 
+def get_firebase_config_dict():
+    return {
+        "apiKey": FIREBASE_API_KEY,
+        "authDomain": FIREBASE_AUTH_DOMAIN,
+        "projectId": FIREBASE_PROJECT_ID,
+        "storageBucket": FIREBASE_STORAGE_BUCKET,
+        "messagingSenderId": FIREBASE_MESSAGING_SENDER_ID,
+        "appId": FIREBASE_APP_ID,
+        "measurementId": FIREBASE_MEASUREMENT_ID,
+    }
+
+
 @app.route("/")
 @app.route("/admin")
 @app.route("/admin/")
 def index():
-    return render_template("index.html")
+    return render_template("index.html", firebase_config=get_firebase_config_dict())
+
+
+@app.route("/api/firebase-config")
+def firebase_config_api():
+    return jsonify(get_firebase_config_dict())
 
 
 @app.route("/static/<path:filename>")
@@ -374,23 +480,67 @@ def login():
     data = request.get_json(silent=True) or {}
     email = (data.get("email") or "").strip().lower()
     password = (data.get("password") or "").strip()
+    id_token = (data.get("idToken") or "").strip()
 
-    if not email or not password:
-        return jsonify({"error": "Email and password are required."}), 400
+    verified_email = None
 
+    # 1. Firebase Auth Verification
+    if id_token:
+        verified_email = verify_firebase_id_token(id_token)
+        if not verified_email:
+            record_attempt(ip, success=False)
+            return jsonify({"error": "Firebase authentication verification failed or token expired."}), 401
+
+    # 2. Direct Credentials Fallback
+    elif email and password:
+        db = get_db()
+        admin = db.execute("SELECT * FROM admins WHERE LOWER(email) = LOWER(?)", (email,)).fetchone()
+        if admin and check_password_hash(admin["password_hash"], password):
+            verified_email = admin["email"].strip().lower()
+        elif email == ADMIN_EMAIL_DEFAULT and password == ADMIN_PASSWORD_DEFAULT:
+            verified_email = ADMIN_EMAIL_DEFAULT
+        else:
+            record_attempt(ip, success=False)
+            return jsonify({"error": "Invalid email or password."}), 401
+    else:
+        return jsonify({"error": "Authentication credentials or Firebase token required."}), 400
+
+    # 3. Check Admin Privileges
     db = get_db()
-    admin = db.execute("SELECT * FROM admins WHERE LOWER(email) = LOWER(?)", (email,)).fetchone()
+    admin_row = db.execute("SELECT * FROM admins WHERE LOWER(email) = LOWER(?)", (verified_email.lower(),)).fetchone()
 
-    if not admin or not check_password_hash(admin["password_hash"], password):
+    is_authorized = bool(
+        admin_row or
+        (ADMIN_EMAIL_DEFAULT and verified_email.lower() == ADMIN_EMAIL_DEFAULT.lower())
+    )
+
+    if not is_authorized:
         record_attempt(ip, success=False)
-        return jsonify({"error": "Invalid email or password."}), 401
+        return jsonify({
+            "error": f"Access restricted: '{verified_email}' is not registered as an authorized administrator."
+        }), 403
+
+    # Ensure admin record exists in DB for foreign key / ID reference
+    if not admin_row:
+        try:
+            now_time = datetime.now(timezone.utc).isoformat()
+            db.execute(
+                "INSERT INTO admins (email, password_hash, created_at) VALUES (?, ?, ?)",
+                (verified_email.lower(), generate_password_hash(secrets.token_hex(16)), now_time),
+            )
+            db.commit()
+            admin_row = db.execute("SELECT * FROM admins WHERE LOWER(email) = LOWER(?)", (verified_email.lower(),)).fetchone()
+        except Exception:
+            pass
+
+    admin_id = admin_row["id"] if admin_row else 1
 
     record_attempt(ip, success=True)
     session.clear()
-    session["admin_id"] = admin["id"]
-    session["admin_email"] = admin["email"]
+    session["admin_id"] = admin_id
+    session["admin_email"] = verified_email
     session.permanent = True
-    return jsonify({"ok": True, "email": admin["email"]})
+    return jsonify({"ok": True, "email": verified_email})
 
 
 @app.route("/api/logout", methods=["POST"])

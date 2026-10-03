@@ -19,6 +19,8 @@ venv/
 
 # If you ever use a .env file for local secrets, never commit it.
 .env
+serviceAccountKey.json
+*.serviceAccountKey.json
 
 # Editor/OS junk
 .vscode/

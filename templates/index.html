@@ -560,10 +560,17 @@
       </div>
 
       <form id="loginForm">
-        <label>Email</label>
+        <label>Admin Email</label>
         <input type="email" id="loginEmail" required autocomplete="username" placeholder="admin@college.edu" />
         <label>Password</label>
         <input type="password" id="loginPassword" required autocomplete="current-password" placeholder="••••••••" />
+        <div style="display: flex; justify-content: space-between; align-items: center; margin: 6px 0 12px 0;">
+          <span style="font-size: 0.75rem; color: var(--text-muted); display: inline-flex; align-items: center; gap: 4px;">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            Secured via Firebase
+          </span>
+          <a href="#" id="forgotPasswordLink" style="font-size: 0.78rem; color: var(--accent, #6366f1); text-decoration: none;">Forgot password?</a>
+        </div>
         <p id="loginError" class="form-error-msg hidden"></p>
         <button type="submit" class="btn-modal-action">Sign in to Moderation</button>
       </form>
@@ -627,8 +634,15 @@
   <!-- Toast Notification Container -->
   <div id="toastContainer" class="toast-container" aria-live="polite"></div>
 
+  <!-- Firebase App & Auth SDK (v10 compat mode) -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+  <script>
+    window.FIREBASE_CONFIG = {{ (firebase_config or {}) | tojson | safe }};
+  </script>
+
   <!-- Main JavaScript -->
-  <script src="{{ url_for('static', filename='script.js') }}?v=20"></script>
+  <script src="{{ url_for('static', filename='script.js') }}?v=21"></script>
 </body>
 
 </html>

@@ -1837,6 +1837,28 @@ function bindEvents() {
     });
   }
 
+  // ---------------------------------------------------------------------
+  // Firebase Auth Helper
+  // ---------------------------------------------------------------------
+  let firebaseAuthInstance = null;
+
+  function getFirebaseAuth() {
+    if (firebaseAuthInstance) return firebaseAuthInstance;
+    const cfg = window.FIREBASE_CONFIG;
+    if (cfg && cfg.apiKey && cfg.projectId && typeof firebase !== "undefined") {
+      try {
+        if (!firebase.apps || !firebase.apps.length) {
+          firebase.initializeApp(cfg);
+        }
+        firebaseAuthInstance = firebase.auth();
+        return firebaseAuthInstance;
+      } catch (err) {
+        console.warn("[Firebase] Initialization notice:", err);
+      }
+    }
+    return null;
+  }
+
   // Admin Login Form
   const loginForm = el("loginForm");
   if (loginForm) {
@@ -1845,12 +1867,42 @@ function bindEvents() {
       const email = el("loginEmail").value.trim();
       const password = el("loginPassword").value;
       const errorEl = el("loginError");
+      const submitBtn = loginForm.querySelector("button[type=submit]");
+      const originalText = submitBtn ? submitBtn.textContent : "Sign in to Moderation";
+
       if (errorEl) errorEl.classList.add("hidden");
+      if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.textContent = "Authenticating...";
+      }
 
       try {
+        const auth = getFirebaseAuth();
+        let payload = { email, password };
+
+        if (auth) {
+          try {
+            const userCred = await auth.signInWithEmailAndPassword(email, password);
+            const idToken = await userCred.user.getIdToken();
+            payload = { email: userCred.user.email || email, idToken: idToken };
+          } catch (fbErr) {
+            let userMessage = fbErr.message;
+            if (fbErr.code === "auth/invalid-credential" || fbErr.code === "auth/wrong-password" || fbErr.code === "auth/user-not-found") {
+              userMessage = "Invalid admin email or password.";
+            } else if (fbErr.code === "auth/too-many-requests") {
+              userMessage = "Too many attempts. Access temporarily locked. Try again later.";
+            } else if (fbErr.code === "auth/invalid-email") {
+              userMessage = "Please enter a valid email address.";
+            } else if (fbErr.code === "auth/network-request-failed") {
+              userMessage = "Network error. Please check your internet connection.";
+            }
+            throw new Error(userMessage);
+          }
+        }
+
         await api("/api/login", {
           method: "POST",
-          body: JSON.stringify({ email, password }),
+          body: JSON.stringify(payload),
         });
         state.isAdmin = true;
         closeModal("loginModal");
@@ -1861,6 +1913,44 @@ function bindEvents() {
       } catch (err) {
         if (errorEl) {
           errorEl.textContent = err.message;
+          errorEl.classList.remove("hidden");
+        }
+      } finally {
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.textContent = originalText;
+        }
+      }
+    });
+  }
+
+  // Admin Forgot Password (Firebase Auth)
+  const forgotPasswordLink = el("forgotPasswordLink");
+  if (forgotPasswordLink) {
+    forgotPasswordLink.addEventListener("click", async (e) => {
+      e.preventDefault();
+      const email = el("loginEmail").value.trim();
+      const errorEl = el("loginError");
+      if (!email) {
+        if (errorEl) {
+          errorEl.textContent = "Please enter your admin email above first, then click 'Forgot password?'.";
+          errorEl.classList.remove("hidden");
+        }
+        return;
+      }
+
+      try {
+        const auth = getFirebaseAuth();
+        if (auth) {
+          await auth.sendPasswordResetEmail(email);
+          showToast(`Password reset link sent to ${email}`, "success");
+          if (errorEl) errorEl.classList.add("hidden");
+        } else {
+          showToast("Firebase Auth is not configured yet in .env", "error");
+        }
+      } catch (err) {
+        if (errorEl) {
+          errorEl.textContent = err.message || "Failed to send reset link.";
           errorEl.classList.remove("hidden");
         }
       }
@@ -1878,6 +1968,14 @@ function bindEvents() {
       if (msgEl) msgEl.classList.add("hidden");
 
       try {
+        const auth = getFirebaseAuth();
+        if (auth && auth.currentUser) {
+          try {
+            await auth.currentUser.updatePassword(newPwd);
+          } catch (fbPassErr) {
+            console.warn("Firebase password update note:", fbPassErr);
+          }
+        }
         await api("/api/change-password", {
           method: "POST",
           body: JSON.stringify({ current_password: current, new_password: newPwd }),
@@ -1897,6 +1995,14 @@ function bindEvents() {
   const logoutBtn = el("logoutBtn");
   if (logoutBtn) {
     logoutBtn.addEventListener("click", async () => {
+      try {
+        const auth = getFirebaseAuth();
+        if (auth) {
+          await auth.signOut();
+        }
+      } catch (e) {
+        console.warn("Firebase signout notice:", e);
+      }
       await api("/api/logout", { method: "POST" });
       state.isAdmin = false;
       state.adminDiscovered = false;

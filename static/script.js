@@ -1256,6 +1256,7 @@ async function checkSession() {
   try {
     const data = await api("/api/session");
     state.isAdmin = Boolean(data.logged_in || data.loggedIn);
+    if (data.email) state.adminEmail = data.email;
     updateAdminUI();
   } catch (e) {
     state.isAdmin = false;
@@ -1266,6 +1267,11 @@ function updateAdminUI() {
   if (el("adminPill")) el("adminPill").classList.toggle("hidden", !state.isAdmin);
   if (el("adminBtn")) {
     el("adminBtn").classList.toggle("hidden", state.isAdmin || !state.adminDiscovered);
+  }
+  if (state.adminEmail) {
+    if (el("adminDisplayEmail")) el("adminDisplayEmail").textContent = state.adminEmail;
+    if (el("adminAvatarInitials")) el("adminAvatarInitials").textContent = getInitials(state.adminEmail);
+    if (el("accountAdminEmail")) el("accountAdminEmail").textContent = state.adminEmail;
   }
   updatePendingBadge();
   if (state.viewMode === "folders") renderFolderDirectory();
@@ -1333,9 +1339,28 @@ function renderPendingList() {
 
   if (state.pendingPapers.length === 0) {
     listEl.innerHTML = `
-      <div style="text-align:center;padding:36px 14px;color:var(--text-muted);">
-        <p style="font-size:16px;font-weight:700;margin:0 0 6px;">Queue is clear! 🎉</p>
-        <p style="font-size:13px;margin:0;">No submissions waiting for approval right now.</p>
+      <div class="admin-empty-state-card">
+        <div class="admin-empty-icon-wrap">
+          <div class="empty-icon-pulse"></div>
+          <svg class="empty-svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+            <polyline points="22 4 12 14.01 9 11.01"></polyline>
+          </svg>
+        </div>
+        <h3 class="admin-empty-title">All Caught Up! 🎉</h3>
+        <p class="admin-empty-subtitle">The moderation queue is completely clear. Any new student-contributed question papers, mid-term exams, or lecture notes will populate here automatically for your verification.</p>
+        <div class="admin-empty-actions">
+          <button type="button" class="btn-admin-action" onclick="fetchPendingSubmissions()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+            Refresh Queue
+          </button>
+          <button type="button" class="btn-admin-secondary" onclick="closeModal('moderationModal'); openModal('uploadModal');">
+            + Publish Directly as Admin
+          </button>
+        </div>
+        <div class="admin-live-badge">
+          <span class="live-dot"></span> Real-time moderation active &bull; Auto-syncing
+        </div>
       </div>
     `;
     return;
@@ -1343,21 +1368,55 @@ function renderPendingList() {
 
   state.pendingPapers.forEach((p) => {
     const card = document.createElement("div");
-    card.className = "pending-card";
+    card.className = "pending-card-pro";
     const previewUrl = p.filename.startsWith("http") ? p.filename : `/uploads/${encodeURIComponent(p.filename)}`;
+    const dateFormatted = p.uploaded_at ? new Date(p.uploaded_at).toLocaleDateString("en-IN", {
+      day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit"
+    }) : "Recent";
+    const typeLabel = (TYPE_SHORT && TYPE_SHORT[p.type]) ? TYPE_SHORT[p.type] : (p.type || "RESOURCE").toUpperCase();
+
     card.innerHTML = `
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;">
-        <h4 class="pending-title">${escapeHtml(p.title)}</h4>
-        <span class="paper-branch-pill">${escapeHtml(p.branch || "CSE")}</span>
+      <div class="pending-card-header">
+        <div class="pending-badge-group">
+          <span class="pending-branch-badge">${escapeHtml(p.branch || "CSE")}</span>
+          <span class="pending-type-badge">${escapeHtml(typeLabel)}</span>
+          <span class="pending-sem-badge">Semester ${p.semester}</span>
+        </div>
+        <span class="pending-time-text">${dateFormatted}</span>
       </div>
-      <p class="pending-meta">${escapeHtml(p.subject)} &bull; Sem ${p.semester} &bull; Category: <strong>${escapeHtml(p.type.toUpperCase())}</strong></p>
-      <div class="pending-contributor-tag">
-        Submitted by: <strong>${escapeHtml(p.contributor_name || "Anonymous")}</strong> ${p.contributor_contact ? `(${escapeHtml(p.contributor_contact)})` : ""}
+
+      <div class="pending-body-section">
+        <h4 class="pending-title-text">${escapeHtml(p.title)}</h4>
+        <div class="pending-subject-line">
+          <span class="pending-sub-name">${escapeHtml(p.subject)}</span>
+          ${p.code ? `<span class="pending-sub-code">${escapeHtml(p.code)}</span>` : ""}
+        </div>
       </div>
-      <div class="pending-actions">
-        <a href="${previewUrl}" target="_blank" rel="noopener noreferrer" class="btn btn-outline btn-sm">Preview File</a>
-        <button class="btn btn-approve btn-sm" data-approve="${p.id}">✓ Approve &amp; Publish</button>
-        <button class="btn btn-danger btn-sm" data-reject="${p.id}">✕ Reject</button>
+
+      <div class="pending-contributor-row">
+        <div class="contributor-mini-avatar">${getInitials(p.contributor_name || "ST")}</div>
+        <div class="contributor-info-meta">
+          <span class="contrib-label">Contributed by:</span>
+          <strong class="contrib-name">${escapeHtml(p.contributor_name || "Anonymous Student")}</strong>
+          ${p.contributor_contact ? `<span class="contrib-contact">(${escapeHtml(p.contributor_contact)})</span>` : ""}
+        </div>
+      </div>
+
+      <div class="pending-actions-bar">
+        <a href="${previewUrl}" target="_blank" rel="noopener noreferrer" class="btn-pending-preview">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          Preview Document
+        </a>
+        <div class="pending-btn-right">
+          <button class="btn-pending-reject" data-reject="${p.id}">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            Reject
+          </button>
+          <button class="btn-pending-approve" data-approve="${p.id}">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+            Approve &amp; Publish
+          </button>
+        </div>
       </div>
     `;
     listEl.appendChild(card);
@@ -1403,7 +1462,11 @@ async function fetchAdminRequests() {
     const data = await api("/api/admin/feedback");
     state.feedbackRequests = data.feedback || [];
     state.requestsCount = state.feedbackRequests.length;
-    if (el("adminRequestsCount")) el("adminRequestsCount").textContent = state.requestsCount;
+    const reqBadge = el("adminRequestsCount");
+    if (reqBadge) {
+      reqBadge.textContent = state.requestsCount;
+      reqBadge.classList.toggle("has-count", state.requestsCount > 0);
+    }
     renderAdminRequestsList();
   } catch (err) {
     listEl.innerHTML = `<p class="form-error">Failed to load requests: ${escapeHtml(err.message)}</p>`;
@@ -1417,9 +1480,20 @@ function renderAdminRequestsList() {
 
   if (state.feedbackRequests.length === 0) {
     listEl.innerHTML = `
-      <div style="text-align:center;padding:36px 14px;color:var(--text-muted);">
-        <p style="font-size:16px;font-weight:700;margin:0 0 6px;">No pending requests! 🎉</p>
-        <p style="font-size:13px;margin:0;">No paper requests or takedown notices right now.</p>
+      <div class="admin-empty-state-card">
+        <div class="admin-empty-icon-wrap" style="background: rgba(99, 102, 241, 0.12); color: #818cf8; border-color: rgba(99, 102, 241, 0.25);">
+          <svg class="empty-svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+          </svg>
+        </div>
+        <h3 class="admin-empty-title">Zero Pending Inquiries 🎉</h3>
+        <p class="admin-empty-subtitle">All student inquiries, missing paper requests, and takedown notices have been addressed. New student requests will appear here.</p>
+        <div class="admin-empty-actions">
+          <button type="button" class="btn-admin-action" onclick="fetchAdminRequests()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+            Refresh Requests
+          </button>
+        </div>
       </div>
     `;
     return;
@@ -1427,22 +1501,36 @@ function renderAdminRequestsList() {
 
   state.feedbackRequests.forEach((req) => {
     const card = document.createElement("div");
-    card.className = "pending-card";
+    card.className = "pending-card-pro";
     const dateFormatted = new Date(req.created_at).toLocaleDateString("en-IN", {
       day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit"
     });
+    const isDmca = req.category === "dmca_takedown";
     card.innerHTML = `
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;">
-        <span class="file-type-pill ${req.category === 'dmca_takedown' ? 'file-pdf' : 'file-doc'}">${escapeHtml(req.category.toUpperCase())}</span>
-        <span style="font-size:11.5px;color:var(--text-muted);">${dateFormatted}</span>
+      <div class="pending-card-header">
+        <div class="pending-badge-group">
+          <span class="file-type-pill ${isDmca ? 'file-pdf' : 'file-doc'}">${escapeHtml(req.category.toUpperCase().replace('_', ' '))}</span>
+          ${req.branch ? `<span class="pending-branch-badge">${escapeHtml(req.branch)}</span>` : ""}
+        </div>
+        <span class="pending-time-text">${dateFormatted}</span>
       </div>
-      <div style="font-size:14.5px;font-weight:700;color:var(--text-main);margin-top:4px;">${escapeHtml(req.subject || "Resource Request")}</div>
-      <p style="font-size:13px;color:var(--text-muted);margin:4px 0;line-height:1.5;">${escapeHtml(req.message)}</p>
-      <div class="pending-contributor-tag">
-        From: <strong>${escapeHtml(req.name || "Anonymous")}</strong> &bull; Contact: ${escapeHtml(req.contact || "None")} ${req.branch ? `&bull; ${escapeHtml(req.branch)}` : ""}
+
+      <div class="pending-body-section">
+        <h4 class="pending-title-text">${escapeHtml(req.subject || "Resource Inquiry")}</h4>
+        <p style="font-size:13px;color:#cbd5e1;margin:6px 0;line-height:1.5;">${escapeHtml(req.message)}</p>
       </div>
-      <div class="pending-actions">
-        <button class="btn btn-outline btn-sm" data-resolve-req="${req.id}">Mark Resolved</button>
+
+      <div class="pending-contributor-row">
+        <div class="contributor-mini-avatar" style="background: rgba(245, 158, 11, 0.2); color: #fbbf24;">${getInitials(req.name || "ST")}</div>
+        <div class="contributor-info-meta">
+          <span class="contrib-label">From:</span>
+          <strong class="contrib-name">${escapeHtml(req.name || "Anonymous")}</strong>
+          ${req.contact ? `<span class="contrib-contact">&bull; Contact: ${escapeHtml(req.contact)}</span>` : ""}
+        </div>
+      </div>
+
+      <div class="pending-actions-bar" style="justify-content: flex-end;">
+        <button class="btn btn-outline btn-sm" data-resolve-req="${req.id}">✓ Mark as Resolved</button>
       </div>
     `;
     listEl.appendChild(card);
@@ -1987,6 +2075,31 @@ function bindEvents() {
           msgEl.textContent = err.message;
           msgEl.classList.remove("hidden");
         }
+      }
+    });
+  }
+
+  // Admin Quick Password Reset Email (Security Tab)
+  const adminSendResetBtn = el("adminSendResetBtn");
+  if (adminSendResetBtn) {
+    adminSendResetBtn.addEventListener("click", async () => {
+      const email = state.adminEmail || "evior0364@gmail.com";
+      const origText = adminSendResetBtn.innerHTML;
+      adminSendResetBtn.disabled = true;
+      adminSendResetBtn.textContent = "Sending link...";
+      try {
+        const auth = getFirebaseAuth();
+        if (auth) {
+          await auth.sendPasswordResetEmail(email);
+          showToast(`Password reset link dispatched to ${email}`, "success");
+        } else {
+          showToast("Firebase Auth could not be initialized.", "error");
+        }
+      } catch (err) {
+        showToast(err.message || "Failed to send reset link.", "error");
+      } finally {
+        adminSendResetBtn.disabled = false;
+        adminSendResetBtn.innerHTML = origText;
       }
     });
   }

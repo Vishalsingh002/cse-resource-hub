@@ -13,7 +13,7 @@
   <link
     href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap"
     rel="stylesheet">
-  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=15" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=16" />
 </head>
 
 <body>
@@ -500,48 +500,134 @@
   </div>
 
   <!-- ============================================================
-       MODAL 8: Admin Moderation Portal
+       MODAL 8: Admin Moderation Portal (Executive Pro Dashboard)
        ============================================================ -->
   <div id="moderationModal" class="modal-overlay hidden" role="dialog" aria-modal="true">
-    <div class="modal modal-wide">
+    <div class="modal modal-wide modal-admin-pro">
       <button class="modal-close" data-close="moderationModal">&times;</button>
-      <div class="modal-header-simple">
-        <h2 class="font-kalam">Admin Moderation Portal</h2>
-        <p class="modal-subtext">Review pending community uploads, student requests, or remove spam</p>
+      
+      <!-- Top Header Row -->
+      <div class="admin-pro-header">
+        <div class="admin-pro-header-info">
+          <div class="admin-pro-tags">
+            <span class="admin-chip-live">
+              <span class="live-dot-pulse"></span> Live Moderation Desk
+            </span>
+            <span class="admin-chip-security">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+              Firebase Protected
+            </span>
+          </div>
+          <h2 class="admin-pro-title">Admin Moderation Portal</h2>
+          <p class="admin-pro-subtitle">Review pending community contributions, student paper requests, and platform security.</p>
+        </div>
+
+        <div class="admin-pro-header-user">
+          <div class="admin-user-card" id="adminUserPill">
+            <div class="admin-user-avatar" id="adminAvatarInitials">AD</div>
+            <div class="admin-user-meta">
+              <span class="admin-user-label">Logged In</span>
+              <span class="admin-user-email" id="adminDisplayEmail">admin@quantum.edu</span>
+            </div>
+          </div>
+        </div>
       </div>
 
-      <div class="admin-tab-bar">
-        <button id="adminTabPending" class="admin-tab active">Pending Queue (<span
-            id="adminPendingCount">0</span>)</button>
-        <button id="adminTabRequests" class="admin-tab">Student Requests (<span
-            id="adminRequestsCount">0</span>)</button>
-        <button id="adminTabAccount" class="admin-tab">Account &amp; Security</button>
+      <!-- Segmented Tab Bar -->
+      <div class="admin-segmented-tabs">
+        <button id="adminTabPending" class="admin-tab-btn active">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>
+          <span>Pending Queue</span>
+          <span id="adminPendingCount" class="admin-counter-pill">0</span>
+        </button>
+        <button id="adminTabRequests" class="admin-tab-btn">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+          <span>Student Requests</span>
+          <span id="adminRequestsCount" class="admin-counter-pill">0</span>
+        </button>
+        <button id="adminTabAccount" class="admin-tab-btn">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+          <span>Security &amp; Account</span>
+        </button>
       </div>
 
       <!-- Tab Content 1: Pending Review -->
-      <div id="adminPendingSection">
+      <div id="adminPendingSection" class="admin-panel-section">
         <div id="adminPendingList" class="admin-pending-list"></div>
       </div>
 
       <!-- Tab Content 2: Student Requests -->
-      <div id="adminRequestsSection" class="hidden">
+      <div id="adminRequestsSection" class="admin-panel-section hidden">
         <div id="adminRequestsList" class="admin-pending-list"></div>
       </div>
 
-      <!-- Tab Content 3: Account -->
-      <div id="adminAccountSection" class="hidden">
-        <div class="account-card">
-          <h4>Change Admin Password</h4>
-          <form id="changePasswordForm">
-            <label>Current Password</label>
-            <input type="password" id="currentPassword" required />
-            <label>New Password (min 8 characters)</label>
-            <input type="password" id="newPassword" required minlength="8" />
-            <p id="changePasswordMsg" class="form-error-msg hidden"></p>
-            <button type="submit" class="btn-modal-action">Update Password</button>
-          </form>
-          <hr class="simple-divider" />
-          <button id="logoutBtn" class="btn-danger-simple">Sign Out of Admin Portal</button>
+      <!-- Tab Content 3: Account & Security -->
+      <div id="adminAccountSection" class="admin-panel-section hidden">
+        <div class="admin-account-grid">
+          <!-- Left: Identity Overview Card -->
+          <div class="admin-account-info-card">
+            <div class="account-card-header">
+              <span class="account-card-icon">🛡️</span>
+              <div>
+                <h4 class="account-card-title">Administrator Identity</h4>
+                <p class="account-card-sub">Active authentication &amp; role details</p>
+              </div>
+            </div>
+
+            <div class="account-meta-list">
+              <div class="account-meta-row">
+                <span class="meta-row-label">Admin Email:</span>
+                <span class="meta-row-value font-mono" id="accountAdminEmail">evior0364@gmail.com</span>
+              </div>
+              <div class="account-meta-row">
+                <span class="meta-row-label">Access Level:</span>
+                <span class="meta-badge-role">Super Admin &bull; Full Vault Control</span>
+              </div>
+              <div class="account-meta-row">
+                <span class="meta-row-label">Auth Provider:</span>
+                <span class="meta-badge-fb">Firebase Authentication (Active)</span>
+              </div>
+            </div>
+
+            <div class="account-quick-reset">
+              <p class="quick-reset-hint">Need a password reset link sent to your registered admin email?</p>
+              <button type="button" id="adminSendResetBtn" class="btn-account-reset">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+                Send Password Reset Email
+              </button>
+            </div>
+          </div>
+
+          <!-- Right: Password Change Card -->
+          <div class="account-card">
+            <div class="account-card-header">
+              <span class="account-card-icon">🔑</span>
+              <div>
+                <h4 class="account-card-title">Update Password</h4>
+                <p class="account-card-sub">Change your current credentials</p>
+              </div>
+            </div>
+            
+            <form id="changePasswordForm" class="account-form">
+              <label>Current Password</label>
+              <input type="password" id="currentPassword" required placeholder="Enter current password" />
+              <label>New Password (min 8 characters)</label>
+              <input type="password" id="newPassword" required minlength="8" placeholder="Enter new strong password" />
+              <p id="changePasswordMsg" class="form-error-msg hidden"></p>
+              <button type="submit" class="btn-modal-action btn-account-save">Update Password</button>
+            </form>
+          </div>
+        </div>
+
+        <div class="admin-signout-row">
+          <div class="signout-notice">
+            <span class="signout-icon">🚪</span>
+            <span>Finished moderating? Sign out to secure the administrator session.</span>
+          </div>
+          <button id="logoutBtn" class="btn-danger-pro">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+            Sign Out of Admin Portal
+          </button>
         </div>
       </div>
     </div>
@@ -651,7 +737,7 @@
   </script>
 
   <!-- Main JavaScript -->
-  <script src="{{ url_for('static', filename='script.js') }}?v=22"></script>
+  <script src="{{ url_for('static', filename='script.js') }}?v=23"></script>
 </body>
 
 </html>

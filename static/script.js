@@ -1946,7 +1946,7 @@ function bindEvents() {
           showToast(`Password reset link sent to ${email}`, "success");
           if (errorEl) errorEl.classList.add("hidden");
         } else {
-          showToast("Firebase Auth is not configured yet in .env", "error");
+          showToast("Firebase Auth could not be loaded. Please refresh the page.", "error");
         }
       } catch (err) {
         if (errorEl) {

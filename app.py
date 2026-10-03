@@ -67,13 +67,13 @@ if CLOUDINARY_CLOUD_NAME and CLOUDINARY_API_KEY:
     )
 
 # Firebase credentials
-FIREBASE_API_KEY = os.environ.get("FIREBASE_API_KEY", "").strip()
-FIREBASE_AUTH_DOMAIN = os.environ.get("FIREBASE_AUTH_DOMAIN", "").strip()
-FIREBASE_PROJECT_ID = os.environ.get("FIREBASE_PROJECT_ID", "").strip()
-FIREBASE_STORAGE_BUCKET = os.environ.get("FIREBASE_STORAGE_BUCKET", "").strip()
-FIREBASE_MESSAGING_SENDER_ID = os.environ.get("FIREBASE_MESSAGING_SENDER_ID", "").strip()
-FIREBASE_APP_ID = os.environ.get("FIREBASE_APP_ID", "").strip()
-FIREBASE_MEASUREMENT_ID = os.environ.get("FIREBASE_MEASUREMENT_ID", "").strip()
+FIREBASE_API_KEY = os.environ.get("FIREBASE_API_KEY", "AIzaSyBzn6tZXuP55s2PlqE46Q1x0l0M9W8yKVI").strip()
+FIREBASE_AUTH_DOMAIN = os.environ.get("FIREBASE_AUTH_DOMAIN", "q-resouce.firebaseapp.com").strip()
+FIREBASE_PROJECT_ID = os.environ.get("FIREBASE_PROJECT_ID", "q-resouce").strip()
+FIREBASE_STORAGE_BUCKET = os.environ.get("FIREBASE_STORAGE_BUCKET", "q-resouce.firebasestorage.app").strip()
+FIREBASE_MESSAGING_SENDER_ID = os.environ.get("FIREBASE_MESSAGING_SENDER_ID", "759115183075").strip()
+FIREBASE_APP_ID = os.environ.get("FIREBASE_APP_ID", "1:759115183075:web:a11a63c09c35e087aaa6d6").strip()
+FIREBASE_MEASUREMENT_ID = os.environ.get("FIREBASE_MEASUREMENT_ID", "G-DNE72XVYFK").strip()
 FIREBASE_SERVICE_ACCOUNT_KEY = os.environ.get("FIREBASE_SERVICE_ACCOUNT_KEY", "").strip()
 
 # Initialize firebase-admin if service account exists or with project ID

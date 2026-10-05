@@ -259,10 +259,17 @@ def get_turso_client():
     global _TURSO_CLIENT
     if _TURSO_CLIENT is None:
         import libsql_client
+        import threading
         url = TURSO_DB_URL
         if url.startswith("libsql://"):
             url = url.replace("libsql://", "https://")
         _TURSO_CLIENT = libsql_client.create_client_sync(url=url, auth_token=TURSO_AUTH_TOKEN)
+        for t in threading.enumerate():
+            if "libsql" in t.name.lower() or "asyncio" in t.name.lower():
+                try:
+                    t.daemon = True
+                except Exception:
+                    pass
     return _TURSO_CLIENT
 
 
@@ -738,29 +745,42 @@ def upload_paper():
         except Exception as e:
             return jsonify({"error": f"Cloudinary upload failed: {str(e)}"}), 500
     else:
+        if os.environ.get("VERCEL"):
+            return jsonify({
+                "error": "Cloudinary credentials missing in Vercel. Please add CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, and CLOUDINARY_API_SECRET in your Vercel Dashboard Settings -> Environment Variables."
+            }), 500
         stored_name = f"{secrets.token_hex(8)}_{safe_name}"
         file.save(os.path.join(UPLOAD_DIR, stored_name))
         stored_file_ref = stored_name
+
+    # Check Turso on Vercel
+    if os.environ.get("VERCEL") and not (TURSO_DB_URL and TURSO_AUTH_TOKEN):
+        return jsonify({
+            "error": "Turso database credentials missing in Vercel. Please add TURSO_DATABASE_URL and TURSO_AUTH_TOKEN in your Vercel Dashboard Settings -> Environment Variables."
+        }), 500
 
     # Determine moderation status:
     # Admins get immediate publishing; community submissions go to moderation
     is_admin = bool(session.get("admin_id"))
     status = "approved" if is_admin else "pending"
 
-    db = get_db()
-    db.execute(
-        """INSERT INTO papers (
-            title, subject, code, semester, type, filename, original_name,
-            uploaded_at, branch, contributor_name, contributor_contact, status, downloads
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)""",
-        (
-            title, subject, code, semester, type_, stored_file_ref, safe_name,
-            datetime.now(timezone.utc).isoformat(), branch, contributor_name,
-            contributor_contact, status
-        ),
-    )
-    db.commit()
-    invalidate_papers_cache()
+    try:
+        db = get_db()
+        db.execute(
+            """INSERT INTO papers (
+                title, subject, code, semester, type, filename, original_name,
+                uploaded_at, branch, contributor_name, contributor_contact, status, downloads
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)""",
+            (
+                title, subject, code, semester, type_, stored_file_ref, safe_name,
+                datetime.now(timezone.utc).isoformat(), branch, contributor_name,
+                contributor_contact, status
+            ),
+        )
+        db.commit()
+        invalidate_papers_cache()
+    except Exception as db_err:
+        return jsonify({"error": f"Database save error: {str(db_err)}"}), 500
 
     if status == "approved":
         msg = "Resource published to the hub immediately!"

@@ -2073,7 +2073,21 @@ function bindEvents() {
           credentials: "same-origin",
           body: formData,
         });
-        const data = await res.json();
+
+        let data = {};
+        const text = await res.text();
+        try {
+          data = JSON.parse(text);
+        } catch {
+          if (res.status === 504 || text.toLowerCase().includes("exceeded") || text.toLowerCase().includes("timeout")) {
+            throw new Error("Upload Timeout (504): File upload hone me 10s se zyada waqt laga. Kripya dobara try karein.");
+          } else if (!res.ok) {
+            throw new Error(`Server Error (${res.status}): Server ne valid response nahi diya. Vercel logs ya credentials check karein.`);
+          } else {
+            throw new Error("Invalid response received from server.");
+          }
+        }
+
         if (!res.ok) throw new Error(data.error || "Upload failed.");
 
         closeModal("uploadModal");

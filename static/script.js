@@ -453,6 +453,17 @@ function showToast(message, type = "success") {
 }
 
 // ---------------------------------------------------------------------
+// Performance Debounce Utility
+// ---------------------------------------------------------------------
+function debounce(fn, delay = 160) {
+  let timer;
+  return function (...args) {
+    clearTimeout(timer);
+    timer = setTimeout(() => fn.apply(this, args), delay);
+  };
+}
+
+// ---------------------------------------------------------------------
 // API Helper
 // ---------------------------------------------------------------------
 async function api(path, options = {}) {
@@ -670,13 +681,23 @@ function updatePendingBadge() {
 function renderFolderDirectory() {
   const listEl = el("folderTreeList");
   const breadcrumbEl = el("folderBreadcrumb");
+  const upBtn = el("folderUpBtn");
   if (!listEl || !breadcrumbEl) return;
+
+  if (upBtn) {
+    if (state.folderLevel === "root") {
+      upBtn.classList.add("hidden");
+    } else {
+      upBtn.classList.remove("hidden");
+    }
+  }
 
   listEl.innerHTML = "";
 
   if (state.folderLevel === "root") {
     breadcrumbEl.innerHTML = `<span class="crumb-active">pyqs</span>`;
 
+    const fragment = document.createDocumentFragment();
     DEPARTMENTS.forEach((dept) => {
       // Calculate total files in this department across all its branches
       const deptPapersCount = state.allPapers.filter((p) =>
@@ -700,8 +721,9 @@ function renderFolderDirectory() {
         state.folderDept = dept;
         renderFolderDirectory();
       });
-      listEl.appendChild(row);
+      fragment.appendChild(row);
     });
+    listEl.appendChild(fragment);
 
   } else if (state.folderLevel === "dept") {
     const dept = state.folderDept || DEPARTMENTS[0];
@@ -711,6 +733,7 @@ function renderFolderDirectory() {
       <span class="crumb-active">${escapeHtml(dept.name)}</span>
     `;
 
+    const fragment = document.createDocumentFragment();
     dept.branches.forEach((b) => {
       const count = state.allPapers.filter((p) => matchesBranch(p.branch, b)).length;
       const row = document.createElement("div");
@@ -730,8 +753,9 @@ function renderFolderDirectory() {
         state.folderBranch = b;
         renderFolderDirectory();
       });
-      listEl.appendChild(row);
+      fragment.appendChild(row);
     });
+    listEl.appendChild(fragment);
 
   } else if (state.folderLevel === "branch") {
     const b = state.folderBranch;
@@ -746,6 +770,7 @@ function renderFolderDirectory() {
     const totalSemesters = b.semesters || 8;
     const semList = Array.from({ length: totalSemesters }, (_, i) => i + 1);
 
+    const fragment = document.createDocumentFragment();
     semList.forEach((s) => {
       const count = state.allPapers.filter(
         (p) => matchesBranch(p.branch, b) && Number(p.semester) === Number(s)
@@ -767,8 +792,9 @@ function renderFolderDirectory() {
         state.folderSem = s;
         renderFolderDirectory();
       });
-      listEl.appendChild(row);
+      fragment.appendChild(row);
     });
+    listEl.appendChild(fragment);
 
   } else if (state.folderLevel === "semester") {
     const b = state.folderBranch;
@@ -819,6 +845,7 @@ function renderFolderDirectory() {
       listEl.appendChild(emptyRow);
     } else {
       // Sort subjects: subjects with files first, then alphabetically
+      const fragment = document.createDocumentFragment();
       subjectsList.sort((x, y) => (y.count - x.count) || x.name.localeCompare(y.name)).forEach((sub) => {
         const row = document.createElement("div");
         row.className = "folder-row-item";
@@ -837,8 +864,9 @@ function renderFolderDirectory() {
           state.folderSubject = sub.name;
           renderFolderDirectory();
         });
-        listEl.appendChild(row);
+        fragment.appendChild(row);
       });
+      listEl.appendChild(fragment);
     }
 
   } else if (state.folderLevel === "subject") {
@@ -894,6 +922,7 @@ function renderFolderDirectory() {
       );
 
       // Render category folders
+      const fragment = document.createDocumentFragment();
       categoriesList.forEach((cat) => {
         const row = document.createElement("div");
         row.className = "folder-row-item";
@@ -913,7 +942,7 @@ function renderFolderDirectory() {
           state.folderCategoryName = cat.name;
           renderFolderDirectory();
         });
-        listEl.appendChild(row);
+        fragment.appendChild(row);
       });
 
       // Also provide an "All Resources" folder option if multiple categories exist
@@ -936,8 +965,9 @@ function renderFolderDirectory() {
           state.folderCategoryName = `All Resources (${subj})`;
           renderFolderDirectory();
         });
-        listEl.appendChild(allRow);
+        fragment.appendChild(allRow);
       }
+      listEl.appendChild(fragment);
     }
 
   } else if (state.folderLevel === "category") {
@@ -984,9 +1014,11 @@ function renderFolderDirectory() {
       listEl.appendChild(emptyRow);
     } else {
       categoryPapers.sort((a, b) => (b.title || "").localeCompare(a.title || ""));
+      const fragment = document.createDocumentFragment();
       categoryPapers.forEach((p) => {
-        listEl.appendChild(createPaperRow(p));
+        fragment.appendChild(createPaperRow(p));
       });
+      listEl.appendChild(fragment);
       bindPaperEvents(listEl);
     }
   }
@@ -1061,6 +1093,8 @@ function handleFolderUp() {
   }
   renderFolderDirectory();
 }
+
+window.handleFolderUp = handleFolderUp;
 
 // ---------------------------------------------------------------------
 // Minimalist Paper Row Renderer (Matching Screenshot Style)
@@ -1206,9 +1240,11 @@ function handleSearch(query) {
     }
   } else {
     if (empty) empty.classList.add("hidden");
+    const fragment = document.createDocumentFragment();
     matches.forEach((p) => {
-      papersGrid.appendChild(createPaperRow(p));
+      fragment.appendChild(createPaperRow(p));
     });
+    papersGrid.appendChild(fragment);
     bindPaperEvents(papersGrid);
   }
 }
@@ -1279,14 +1315,12 @@ function updateAdminUI() {
   if (el("adminAvatarInitials")) el("adminAvatarInitials").textContent = getInitials(email);
   if (el("accountAdminEmail")) el("accountAdminEmail").textContent = email;
   updatePendingBadge();
-  if (state.viewMode === "folders") renderFolderDirectory();
-  else renderCardsView();
+  renderFolderDirectory();
 }
 
 async function reloadData() {
   await fetchAllPapers();
-  if (state.viewMode === "folders") renderFolderDirectory();
-  else renderCardsView();
+  renderFolderDirectory();
 }
 
 async function deletePaper(id) {
@@ -1879,7 +1913,8 @@ function bindEvents() {
   // Live Search Input
   const searchInput = el("searchInput");
   if (searchInput) {
-    searchInput.addEventListener("input", (e) => handleSearch(e.target.value));
+    const debouncedSearch = debounce((val) => handleSearch(val), 160);
+    searchInput.addEventListener("input", (e) => debouncedSearch(e.target.value));
     searchInput.addEventListener("keydown", (e) => {
       if (e.key === "Enter") {
         const q = searchInput.value.trim().toLowerCase();
@@ -2514,6 +2549,18 @@ window.openUploadModal = function() {
 
 window.openContributorsWall = openContributorsWall;
 window.openModerationPanel = openModerationPanel;
+
+function setViewMode(mode) {
+  state.viewMode = mode;
+  if (mode === "folders") {
+    const folderView = el("folderDirectoryView");
+    const papersGrid = el("papersGrid");
+    if (folderView) folderView.classList.remove("hidden");
+    if (papersGrid) papersGrid.classList.add("hidden");
+    renderFolderDirectory();
+  }
+}
+window.setViewMode = setViewMode;
 
 function escapeHtml(str) {
   const div = document.createElement("div");

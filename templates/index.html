@@ -6,14 +6,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Quantum University — Previous Year Question Papers (PYQs) &amp; Notes</title>
   <meta name="description"
-    content="A collection of student-contributed previous year question papers, notes, and syllabus for Quantum University semester examinations. 100% ad-free." />
+    content="A collection of student-contributed previous year question papers, notes, and syllabus for Quantum University semester examinations." />
   <link rel="icon" type="image/png" href="{{ url_for('static', filename='quantum_logo.png') }}">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link
     href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap"
     rel="stylesheet">
-  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=20" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=28" />
 </head>
 
 <body>
@@ -24,7 +24,11 @@
       <div class="nav-left">
         <a href="/" class="brand-link">
           <img src="{{ url_for('static', filename='quantum_logo.png') }}" alt="Quantum Logo" class="brand-logo-img" />
-          <span class="brand-title">Quantum University <span class="brand-sub-badge">PYQs</span></span>
+          <span class="brand-title">
+            <span class="brand-name-desk">Quantum University</span>
+            <span class="brand-name-mob">Quantum Vault</span>
+            <span class="brand-sub-badge">PYQs</span>
+          </span>
         </a>
       </div>
 
@@ -50,10 +54,7 @@
         </button>
 
         <!-- Contributors Hall of Fame -->
-        <button id="openContributorsBtn" class="nav-btn btn-ghost" title="Top Contributors">
-          <span class="btn-text-full">🏆 Hall of Fame</span>
-          <span class="btn-text-mobile">🏆 Hall</span>
-        </button>
+        <button id="openContributorsBtn" class="nav-btn btn-ghost" title="Top Contributors">🏆 Hall of Fame</button>
 
         <!-- Admin Access -->
         <button id="adminPill" class="admin-pill hidden" title="Admin Portal">
@@ -70,13 +71,38 @@
 
     <!-- Top Hero Notice -->
     <header class="page-hero">
-      <div class="hero-top-row">
-        <h1 class="portal-main-title">Quantum University Academic Archive</h1>
+      <div class="hero-backdrop-glow"></div>
+      <div class="hero-inner">
+        <div class="hero-badge-pill">
+          <span class="hero-badge-dot"></span>
+          <span class="hero-badge-icon">🏛️</span>
+          <span class="hero-badge-text">Campus Academic Archive &bull; 2026 Edition</span>
+          <span class="hero-badge-highlight">Free &amp; Verified</span>
+        </div>
+        
+        <h1 class="portal-main-title">
+          Quantum University <span class="hero-gradient-text">Academic Archive</span>
+        </h1>
+        
+        <p class="portal-main-desc">
+          A verified, community-driven repository of semester previous year question papers (PYQs), mid-term exams, end-term exams, official syllabi, and curated study notes &mdash; 100% free and open to all students.
+        </p>
+
+        <div class="hero-feature-tags">
+          <div class="hero-tag-item">
+            <svg class="hero-tag-svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+            <span>All Branches (CSE, AI/ML, ECE, ME, Civil &amp; more)</span>
+          </div>
+          <div class="hero-tag-item">
+            <svg class="hero-tag-svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+            <span>1-Click Direct Downloads</span>
+          </div>
+          <div class="hero-tag-item">
+            <svg class="hero-tag-svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+            <span>No Paywall &bull; No Login Required</span>
+          </div>
+        </div>
       </div>
-      <p class="portal-main-desc">
-        A community-driven repository of semester previous year question papers (PYQs), mid-term exams, end-term exams,
-        syllabi, and study notes. Free, ad-free, and open to all students.
-      </p>
     </header>
 
     <!-- Main Folder Explorer Section (Full Width, Screenshot 5) -->
@@ -85,6 +111,12 @@
       <!-- Folder Explorer Header -->
       <div class="explorer-mode-header">
         <div class="folder-path-bar">
+          <button id="folderUpBtn" class="btn-folder-up hidden" onclick="handleFolderUp()" title="Go up one folder">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5">
+              <polyline points="15 18 9 12 15 6"></polyline>
+            </svg>
+            <span>Back</span>
+          </button>
           <div class="folder-path-label font-kalam" id="folderBreadcrumb">pyqs</div>
         </div>
       </div>
@@ -130,93 +162,163 @@
 
   </main>
 
-  <!-- Professional Student Portal Footer (Matching Screenshots 1 & 4 Exactly) -->
+  <!-- Professional Student Portal Footer -->
   <footer class="portal-footer">
     <div class="footer-wrap">
       <div class="footer-row-top">
 
-        <!-- Maintainer Column (Matching Screenshot 1 & 4) -->
+        <!-- Maintainer Column -->
         <div class="footer-col-maintainer">
-          <div class="maintainer-line font-kalam">
-            Maintained by <span class="maintainer-name-highlight">Vishal Raj</span>
-          </div>
-          <div class="maintainer-batch">
-            (BTech CSE 2026)
-          </div>
+          <div class="maintainer-profile-card">
+            <div class="maintainer-header-badges">
+              <span class="maintainer-chip">
+                <span class="maintainer-chip-dot"></span> Lead Maintainer
+              </span>
+              <span class="maintainer-batch-badge">B.Tech CSE &bull; 2024&ndash;2028</span>
+            </div>
 
+            <div class="maintainer-name-row">
+              <div class="maintainer-avatar-circle">VR</div>
+              <div>
+                <div class="maintainer-line">
+                  Maintained by <span class="maintainer-name-highlight">Vishal Raj</span>
+                </div>
+                <div class="maintainer-subline">Quantum University &bull; Roorkee, India</div>
+              </div>
+            </div>
 
-          <!-- Social Icon Links Row (Matching Screenshot 1 & 4) -->
-          <div class="footer-social-row">
-            <!-- GitHub -->
-            <a href="https://github.com/" target="_blank" rel="noopener noreferrer" class="social-icon-link"
-              title="GitHub">
-              <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
-                <path
-                  d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z" />
-              </svg>
-            </a>
-            <!-- LinkedIn -->
-            <a href="https://linkedin.com" target="_blank" rel="noopener noreferrer" class="social-icon-link"
-              title="LinkedIn">
-              <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
-                <path
-                  d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z" />
-              </svg>
-            </a>
-            <!-- Telegram -->
-            <a href="https://telegram.org" target="_blank" rel="noopener noreferrer" class="social-icon-link"
-              title="Telegram">
-              <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
-                <path
-                  d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221l-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.446 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.121l-6.871 4.326-2.962-.924c-.643-.204-.657-.643.136-.953l11.57-4.458c.538-.196 1.006.128.832.943z" />
-              </svg>
-            </a>
-            <!-- Resume / Document -->
-            <a href="javascript:void(0)" onclick="openModal('aboutModal')" class="social-icon-link"
-              title="About Vishal">
-              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                <polyline points="14 2 14 8 20 8"></polyline>
-              </svg>
-            </a>
-            <!-- Web / Globe -->
-            <a href="/" class="social-icon-link" title="Quantum Academic Vault Home">
-              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
-                <circle cx="12" cy="12" r="10"></circle>
-                <line x1="2" y1="12" x2="22" y2="12"></line>
-                <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z">
-                </path>
-              </svg>
-            </a>
+            <p class="footer-desc-text">
+              An open-access academic vault built by students to preserve authentic semester exam papers, solution keys, and comprehensive lecture notes for campus batches.
+            </p>
+
+            <!-- Social Icon Links Row -->
+            <div class="footer-social-row">
+              <!-- GitHub -->
+              <a href="https://github.com" target="_blank" rel="noopener noreferrer" class="social-icon-btn"
+                title="GitHub Profile" aria-label="GitHub">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+                  <path
+                    d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z" />
+                </svg>
+              </a>
+              <!-- LinkedIn -->
+              <a href="https://linkedin.com" target="_blank" rel="noopener noreferrer" class="social-icon-btn"
+                title="LinkedIn Profile" aria-label="LinkedIn">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+                  <path
+                    d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z" />
+                </svg>
+              </a>
+              <!-- Telegram -->
+              <a href="https://telegram.org" target="_blank" rel="noopener noreferrer" class="social-icon-btn"
+                title="Telegram Support" aria-label="Telegram">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+                  <path
+                    d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221l-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.446 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.121l-6.871 4.326-2.962-.924c-.643-.204-.657-.643.136-.953l11.57-4.458c.538-.196 1.006.128.832.943z" />
+                </svg>
+              </a>
+              <!-- Resume / Document -->
+              <a href="javascript:void(0)" onclick="openModal('aboutModal')" class="social-icon-btn"
+                title="About Vishal Raj" aria-label="About Vishal Raj">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                  <polyline points="14 2 14 8 20 8"></polyline>
+                  <line x1="16" y1="13" x2="8" y2="13"></line>
+                  <line x1="16" y1="17" x2="8" y2="17"></line>
+                  <polyline points="10 9 9 9 8 9"></polyline>
+                </svg>
+              </a>
+              <!-- Web / Globe -->
+              <a href="/" class="social-icon-btn" title="Quantum Academic Vault Home" aria-label="Home">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <line x1="2" y1="12" x2="22" y2="12"></line>
+                  <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+                </svg>
+              </a>
+            </div>
           </div>
-
-          <p class="footer-desc-text">
-            A collection of student contributed previous year question papers for Quantum University semester
-            examinations.
-          </p>
         </div>
 
-        <!-- Quick Links Column (Matching Screenshot 1 & 4) -->
+        <!-- Quick Links Column -->
         <div class="footer-col-links">
-          <h4 class="footer-links-title font-kalam">Quick Links</h4>
-          <ul class="footer-list font-kalam-sub">
-            <li><a href="javascript:void(0)" onclick="openUploadModal()">Contribute</a></li>
-            <li><a href="javascript:void(0)" onclick="openModal('aboutModal')">About</a></li>
+          <h4 class="footer-links-title">
+            <span class="footer-title-bar"></span>
+            Quick Navigation
+          </h4>
+          <ul class="footer-list">
+            <li>
+              <a href="javascript:void(0)" onclick="openUploadModal()" class="footer-link-item">
+                <span class="footer-link-arrow">→</span>
+                <span>Contribute Resource</span>
+              </a>
+            </li>
+            <li>
+              <a href="javascript:void(0)" onclick="openModal('aboutModal')" class="footer-link-item">
+                <span class="footer-link-arrow">→</span>
+                <span>About the Project</span>
+              </a>
+            </li>
+            <li>
+              <a href="#folderBreadcrumb" class="footer-link-item">
+                <span class="footer-link-arrow">→</span>
+                <span>Browse Question Papers</span>
+              </a>
+            </li>
+            <li>
+              <a href="javascript:void(0)" onclick="openContributorsWall()" class="footer-link-item">
+                <span class="footer-link-arrow">→</span>
+                <span>Campus Hall of Fame</span>
+              </a>
+            </li>
           </ul>
         </div>
 
         <!-- Working Conditions & Legal Column -->
         <div class="footer-col-links">
-          <h4 class="footer-links-title font-kalam">Legal &amp; Policy</h4>
-          <ul class="footer-list font-kalam-sub">
-            <li><a href="javascript:void(0)" onclick="openModal('termsModal')">Terms &amp; Conditions</a></li>
-            <li><a href="javascript:void(0)" onclick="openModal('privacyModal')">Privacy Policy</a></li>
-            <li><a href="javascript:void(0)" onclick="openModal('dmcaModal')">Academic Fair Use / DMCA</a></li>
-            <li><a href="javascript:void(0)" onclick="openModal('dmcaModal')">Takedown Request</a></li>
-            <li><a href="javascript:void(0)" onclick="openModal('requestModal')">Request Missing Paper</a></li>
+          <h4 class="footer-links-title">
+            <span class="footer-title-bar"></span>
+            Legal &amp; Campus Policy
+          </h4>
+          <ul class="footer-list">
+            <li>
+              <a href="javascript:void(0)" onclick="openModal('termsModal')" class="footer-link-item">
+                <span class="footer-link-arrow">→</span>
+                <span>Terms &amp; Conditions</span>
+              </a>
+            </li>
+            <li>
+              <a href="javascript:void(0)" onclick="openModal('privacyModal')" class="footer-link-item">
+                <span class="footer-link-arrow">→</span>
+                <span>Privacy &amp; Zero-Tracking</span>
+              </a>
+            </li>
+            <li>
+              <a href="javascript:void(0)" onclick="openModal('dmcaModal')" class="footer-link-item">
+                <span class="footer-link-arrow">→</span>
+                <span>Academic Fair Use / DMCA</span>
+              </a>
+            </li>
+            <li>
+              <a href="javascript:void(0)" onclick="openModal('dmcaModal')" class="footer-link-item">
+                <span class="footer-link-arrow">→</span>
+                <span>Takedown Notice Request</span>
+              </a>
+            </li>
+            <li>
+              <a href="javascript:void(0)" onclick="openModal('requestModal')" class="footer-link-item">
+                <span class="footer-link-arrow">→</span>
+                <span>Request Missing Paper</span>
+              </a>
+            </li>
           </ul>
         </div>
 
+      </div>
+
+      <!-- Bottom Sub-Footer Bar -->
+      <div class="footer-bottom-bar">
+        <span>&copy; 2026 <strong>Quantum Academic Vault</strong>. All Rights Reserved.</span>
       </div>
 
     </div>
@@ -275,8 +377,8 @@
         <label>File (PDF, Word, PPT, Image) <span class="optional">Max 10MB</span></label>
         <div id="fileDropzone" class="file-drop-area">
           <div id="fileDropzoneEmpty" class="drop-text">
-            <span>📁 Drag &amp; drop or click to choose file</span>
-            <small>Supports PDF, DOC, DOCX, PPT, PNG, JPG</small>
+            <span>📁 Tap to choose file or drag &amp; drop</span>
+            <small>Supports PDF, DOC, DOCX, PPT, PNG, JPG (Max 10MB)</small>
           </div>
           <div id="fileDropzonePreview" class="file-preview-pill hidden">
             <span id="filePreviewName"></span>
@@ -380,7 +482,7 @@
 
         <h4>2. Contributor Attribution</h4>
         <p>When you contribute notes or question papers, only your preferred display name (e.g. &ldquo;Vishal
-          Singh&rdquo;) is publicly shown to credit your contribution. Optional contact details or roll numbers are
+          Raj&rdquo;) is publicly shown to credit your contribution. Optional contact details or roll numbers are
           strictly accessible to moderation admins only.</p>
       </div>
 
@@ -443,7 +545,7 @@
         <div class="form-row-2">
           <div>
             <label>Your Name <span class="optional">(optional)</span></label>
-            <input type="text" id="requestName" placeholder="e.g. Vishal Singh" />
+            <input type="text" id="requestName" placeholder="e.g. Vishal Raj" />
           </div>
           <div>
             <label>Contact Email / Telegram <span class="optional">(optional)</span></label>
@@ -490,13 +592,13 @@
       </div>
 
       <div class="legal-text-scroll">
-        <p><strong>Quantum Academic Vault</strong> was created by <strong>Vishal Singh</strong> (B.Tech Computer Science
+        <p><strong>Quantum Academic Vault</strong> was created by <strong>Vishal Raj</strong> (B.Tech Computer Science
           &amp; Engineering) as an open-access platform to solve the common campus problem: finding authentic past year
           exam papers and quality study notes without spam, paywalls, or scattered WhatsApp groups.</p>
 
         <div class="maintainer-highlight-simple">
-          <strong>Vishal Singh &bull; Lead Maintainer</strong>
-          <p>B.Tech CSE 2022&ndash;2026 &bull; Quantum University, Roorkee</p>
+          <strong>Vishal Raj &bull; Lead Maintainer</strong>
+          <p>B.Tech CSE 2024&ndash;2028 &bull; Quantum University, Roorkee</p>
         </div>
       </div>
 
@@ -905,7 +1007,7 @@
   </script>
 
   <!-- Main JavaScript -->
-  <script src="{{ url_for('static', filename='script.js') }}?v=26"></script>
+  <script src="{{ url_for('static', filename='script.js') }}?v=28"></script>
 </body>
 
 </html>

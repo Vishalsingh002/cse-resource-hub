@@ -1,6 +1,8 @@
+import atexit
 import os
 import secrets
 import sqlite3
+import time
 import urllib.request
 from datetime import datetime, timedelta, timezone
 from functools import wraps
@@ -110,8 +112,8 @@ def verify_firebase_id_token(id_token):
             decoded = fb_auth.verify_id_token(id_token)
             if decoded and decoded.get("email"):
                 return decoded.get("email").strip().lower()
-    except Exception as e:
-        print("[firebase-admin verify notice]:", e)
+    except Exception:
+        pass
 
     # Method 2: Google OAuth2 tokeninfo endpoint (pure HTTPS via urllib, zero extra credential files needed)
     try:
@@ -125,12 +127,11 @@ def verify_firebase_id_token(id_token):
                 email = data.get("email")
                 aud = data.get("aud")
                 if FIREBASE_PROJECT_ID and aud and aud != FIREBASE_PROJECT_ID:
-                    print(f"[firebase] Token aud mismatch: {aud} vs {FIREBASE_PROJECT_ID}")
                     return None
                 if email:
                     return email.strip().lower()
-    except Exception as e:
-        print("[google-tokeninfo verify notice]:", e)
+    except Exception:
+        pass
 
     # Method 3: Google Identity Toolkit accounts:lookup if FIREBASE_API_KEY is available
     if FIREBASE_API_KEY:
@@ -150,8 +151,8 @@ def verify_firebase_id_token(id_token):
                     users = data.get("users", [])
                     if users and users[0].get("email"):
                         return users[0]["email"].strip().lower()
-        except Exception as e:
-            print("[identitytoolkit verify notice]:", e)
+        except Exception:
+            pass
 
     return None
 
@@ -194,6 +195,7 @@ app.config["MAX_CONTENT_LENGTH"] = MAX_FILE_BYTES
 app.config["SESSION_COOKIE_HTTPONLY"] = True
 app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
 app.config["SESSION_COOKIE_SECURE"] = os.environ.get("SESSION_COOKIE_SECURE", "0") == "1"
+app.config["TEMPLATES_AUTO_RELOAD"] = True
 
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
@@ -247,20 +249,40 @@ class TursoDBWrapper:
         pass
 
     def close(self):
+        # Keep client connection open for connection pooling across requests
+        pass
+
+
+_TURSO_CLIENT = None
+
+def get_turso_client():
+    global _TURSO_CLIENT
+    if _TURSO_CLIENT is None:
+        import libsql_client
+        url = TURSO_DB_URL
+        if url.startswith("libsql://"):
+            url = url.replace("libsql://", "https://")
+        _TURSO_CLIENT = libsql_client.create_client_sync(url=url, auth_token=TURSO_AUTH_TOKEN)
+    return _TURSO_CLIENT
+
+
+def _cleanup_turso():
+    global _TURSO_CLIENT
+    if _TURSO_CLIENT is not None:
         try:
-            self.client.close()
+            _TURSO_CLIENT.close()
         except Exception:
             pass
+        _TURSO_CLIENT = None
+
+
+atexit.register(_cleanup_turso)
 
 
 def get_db():
     if "db" not in g:
         if TURSO_DB_URL and TURSO_AUTH_TOKEN:
-            import libsql_client
-            url = TURSO_DB_URL
-            if url.startswith("libsql://"):
-                url = url.replace("libsql://", "https://")
-            client = libsql_client.create_client_sync(url=url, auth_token=TURSO_AUTH_TOKEN)
+            client = get_turso_client()
             g.db = TursoDBWrapper(client)
         else:
             conn = sqlite3.connect(DB_PATH)
@@ -271,6 +293,18 @@ def get_db():
                 pass
             g.db = conn
     return g.db
+
+
+# In-Memory Papers Cache (Blazing fast sub-millisecond responses)
+_PAPERS_CACHE = {
+    "data": None,
+    "timestamp": 0
+}
+CACHE_TTL = 45  # 45 seconds cache TTL
+
+def invalidate_papers_cache():
+    global _PAPERS_CACHE
+    _PAPERS_CACHE = {"data": None, "timestamp": 0}
 
 
 @app.teardown_appcontext
@@ -289,6 +323,13 @@ def init_db():
         return
 
     db = get_db()
+    # Fast-path check: If papers table already exists, skip 17 slow remote DDL round-trips!
+    try:
+        db.execute("SELECT 1 FROM papers LIMIT 1")
+        _db_initialized = True
+        return
+    except Exception:
+        pass
     statements = [
         """
         CREATE TABLE IF NOT EXISTS admins (
@@ -624,6 +665,13 @@ def list_papers():
 
     query += " ORDER BY uploaded_at DESC"
 
+    # In-memory cache hit check for general visitors (instant 1ms response)
+    now = time.time()
+    is_general_request = (not is_admin and not q and not branch and not semester and not type_)
+    if is_general_request:
+        if _PAPERS_CACHE["data"] is not None and (now - _PAPERS_CACHE["timestamp"]) < CACHE_TTL:
+            return jsonify(_PAPERS_CACHE["data"])
+
     db = get_db()
     rows = db.execute(query, params).fetchall()
     papers = [dict(row) for row in rows]
@@ -637,13 +685,19 @@ def list_papers():
         except Exception:
             pending_count = 0
 
-    return jsonify({
+    payload = {
         "papers": papers,
         "types": TYPES,
         "branches": BRANCHES,
         "semesters": SEMESTERS,
         "pending_count": pending_count,
-    })
+    }
+
+    if is_general_request:
+        _PAPERS_CACHE["data"] = payload
+        _PAPERS_CACHE["timestamp"] = now
+
+    return jsonify(payload)
 
 
 @app.route("/api/upload", methods=["POST"])
@@ -706,6 +760,7 @@ def upload_paper():
         ),
     )
     db.commit()
+    invalidate_papers_cache()
 
     if status == "approved":
         msg = "Resource published to the hub immediately!"
@@ -753,6 +808,7 @@ def approve_paper(paper_id):
     db = get_db()
     db.execute("UPDATE papers SET status = 'approved' WHERE id = ?", (paper_id,))
     db.commit()
+    invalidate_papers_cache()
     return jsonify({"ok": True, "message": "Resource approved and published!"})
 
 
@@ -775,6 +831,7 @@ def reject_paper(paper_id):
 
     db.execute("DELETE FROM papers WHERE id = ?", (paper_id,))
     db.commit()
+    invalidate_papers_cache()
     return jsonify({"ok": True, "message": "Submission rejected and removed."})
 
 
@@ -813,6 +870,7 @@ def update_paper(paper_id):
         (title, subject, code, semester, type_, branch, contributor_name, paper_id),
     )
     db.commit()
+    invalidate_papers_cache()
     return jsonify({"ok": True})
 
 
@@ -835,6 +893,7 @@ def delete_paper(paper_id):
 
     db.execute("DELETE FROM papers WHERE id = ?", (paper_id,))
     db.commit()
+    invalidate_papers_cache()
     return jsonify({"ok": True})
 
 
@@ -950,5 +1009,23 @@ with app.app_context():
     init_db()
 
 if __name__ == "__main__":
-    # debug=False and use_reloader=False completely prevents Windows Python 3.12 WinError 10038 socket warnings
-    app.run(debug=False, use_reloader=False, port=5000)
+    import signal
+    import sys
+
+    def _sig_handler(sig, frame):
+        try:
+            signal.set_wakeup_fd(-1)
+        except Exception:
+            pass
+        print("\n* Server stopped cleanly.")
+        sys.exit(0)
+
+    try:
+        signal.signal(signal.SIGINT, _sig_handler)
+    except Exception:
+        pass
+
+    try:
+        app.run(debug=False, use_reloader=False, port=5000, threaded=True)
+    except (KeyboardInterrupt, SystemExit):
+        print("\n* Server stopped cleanly.")

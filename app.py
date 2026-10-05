@@ -707,16 +707,53 @@ def list_papers():
     return jsonify(payload)
 
 
+@app.route("/api/cloudinary-sign", methods=["GET"])
+def cloudinary_sign():
+    if not (CLOUDINARY_CLOUD_NAME and CLOUDINARY_API_KEY and CLOUDINARY_API_SECRET):
+        return jsonify({"enabled": False})
+    try:
+        import cloudinary.utils
+        timestamp = int(time.time())
+        params_to_sign = {
+            "folder": "quantum_hub",
+            "timestamp": timestamp,
+        }
+        signature = cloudinary.utils.api_sign_request(params_to_sign, CLOUDINARY_API_SECRET)
+        return jsonify({
+            "enabled": True,
+            "signature": signature,
+            "timestamp": timestamp,
+            "api_key": CLOUDINARY_API_KEY,
+            "cloud_name": CLOUDINARY_CLOUD_NAME,
+            "folder": "quantum_hub",
+        })
+    except Exception as e:
+        return jsonify({"enabled": False, "error": str(e)})
+
+
 @app.route("/api/upload", methods=["POST"])
 def upload_paper():
-    title = (request.form.get("title") or "").strip()
-    subject = (request.form.get("subject") or "").strip()
-    code = (request.form.get("code") or "").strip() or None
-    semester = request.form.get("semester", type=int)
-    type_ = (request.form.get("type") or "").strip().lower()
-    branch = (request.form.get("branch") or "CSE").strip()
-    contributor_name = (request.form.get("contributor_name") or "Anonymous").strip()
-    contributor_contact = (request.form.get("contributor_contact") or "").strip()
+    # Support both JSON (from client direct upload) and standard multipart FormData
+    is_json = request.is_json
+    data = request.get_json(silent=True) or {} if is_json else {}
+
+    title = (data.get("title") or request.form.get("title") or "").strip()
+    subject = (data.get("subject") or request.form.get("subject") or "").strip()
+    code = (data.get("code") or request.form.get("code") or "").strip() or None
+
+    raw_sem = data.get("semester") or request.form.get("semester")
+    try:
+        semester = int(raw_sem) if raw_sem is not None else None
+    except (ValueError, TypeError):
+        semester = None
+
+    type_ = (data.get("type") or request.form.get("type") or "").strip().lower()
+    branch = (data.get("branch") or request.form.get("branch") or "CSE").strip()
+    contributor_name = (data.get("contributor_name") or request.form.get("contributor_name") or "Anonymous").strip()
+    contributor_contact = (data.get("contributor_contact") or request.form.get("contributor_contact") or "").strip()
+
+    file_url = (data.get("file_url") or request.form.get("file_url") or "").strip()
+    original_name = (data.get("original_name") or request.form.get("original_name") or "").strip()
     file = request.files.get("file")
 
     if not title or not subject or not semester or not type_:
@@ -725,33 +762,40 @@ def upload_paper():
         return jsonify({"error": "Invalid semester (must be 1 to 8)."}), 400
     if type_ not in TYPES:
         return jsonify({"error": "Invalid resource type."}), 400
-    if not file or file.filename == "":
-        return jsonify({"error": "A file is required."}), 400
-    if not allowed_file(file.filename):
-        return jsonify({"error": "Unsupported file type. Allowed: PDF, Word, PPT, Images."}), 400
 
-    safe_name = secure_filename(file.filename)
-
-    # Cloudinary Upload if configured
-    if CLOUDINARY_CLOUD_NAME and CLOUDINARY_API_KEY:
-        try:
-            upload_result = cloudinary.uploader.upload(
-                file,
-                resource_type="auto",
-                folder="quantum_hub",
-                use_filename=True,
-            )
-            stored_file_ref = upload_result.get("secure_url")
-        except Exception as e:
-            return jsonify({"error": f"Cloudinary upload failed: {str(e)}"}), 500
+    # 1. Direct Cloudinary Upload from client
+    if file_url:
+        stored_file_ref = file_url
+        safe_name = secure_filename(original_name) if original_name else f"{title[:40]}.pdf"
     else:
-        if os.environ.get("VERCEL"):
-            return jsonify({
-                "error": "Cloudinary credentials missing in Vercel. Please add CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, and CLOUDINARY_API_SECRET in your Vercel Dashboard Settings -> Environment Variables."
-            }), 500
-        stored_name = f"{secrets.token_hex(8)}_{safe_name}"
-        file.save(os.path.join(UPLOAD_DIR, stored_name))
-        stored_file_ref = stored_name
+        # 2. Server-side file upload fallback
+        if not file or file.filename == "":
+            return jsonify({"error": "A file is required."}), 400
+        if not allowed_file(file.filename):
+            return jsonify({"error": "Unsupported file type. Allowed: PDF, Word, PPT, Images."}), 400
+
+        safe_name = secure_filename(file.filename)
+
+        # Cloudinary Upload if configured
+        if CLOUDINARY_CLOUD_NAME and CLOUDINARY_API_KEY:
+            try:
+                upload_result = cloudinary.uploader.upload(
+                    file,
+                    resource_type="auto",
+                    folder="quantum_hub",
+                    use_filename=True,
+                )
+                stored_file_ref = upload_result.get("secure_url")
+            except Exception as e:
+                return jsonify({"error": f"Cloudinary upload failed: {str(e)}"}), 500
+        else:
+            if os.environ.get("VERCEL"):
+                return jsonify({
+                    "error": "Cloudinary credentials missing in Vercel. Please add CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, and CLOUDINARY_API_SECRET in your Vercel Dashboard Settings -> Environment Variables."
+                }), 500
+            stored_name = f"{secrets.token_hex(8)}_{safe_name}"
+            file.save(os.path.join(UPLOAD_DIR, stored_name))
+            stored_file_ref = stored_name
 
     # Check Turso on Vercel
     if os.environ.get("VERCEL") and not (TURSO_DB_URL and TURSO_AUTH_TOKEN):

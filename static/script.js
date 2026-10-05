@@ -2051,38 +2051,120 @@ function bindEvents() {
       const errorEl = el("uploadError");
       if (errorEl) errorEl.classList.add("hidden");
 
+      const fileInput = el("uploadFile");
+      const file = fileInput && fileInput.files ? fileInput.files[0] : null;
+      if (!file) {
+        if (errorEl) {
+          errorEl.textContent = "Please select a file to upload.";
+          errorEl.classList.remove("hidden");
+        }
+        return;
+      }
+
+      if (file.size > 25 * 1024 * 1024) {
+        if (errorEl) {
+          errorEl.textContent = `File size (${(file.size / (1024 * 1024)).toFixed(1)} MB) is too large. Max limit is 25MB.`;
+          errorEl.classList.remove("hidden");
+        }
+        return;
+      }
+
       const submitBtn = uploadForm.querySelector("button[type=submit]");
       const originalText = submitBtn.textContent;
-      submitBtn.textContent = "Uploading Resource...";
       submitBtn.disabled = true;
 
-      const formData = new FormData();
-      formData.append("contributor_name", el("uploadContributorName").value.trim());
-      formData.append("contributor_contact", el("uploadContributorContact").value.trim());
-      formData.append("title", el("uploadTitle").value.trim());
-      formData.append("branch", el("uploadBranch").value);
-      formData.append("semester", el("uploadSemester").value);
-      formData.append("subject", el("uploadSubject").value.trim());
-      formData.append("code", el("uploadCode").value.trim());
-      formData.append("type", el("uploadType").value);
-      formData.append("file", el("uploadFile").files[0]);
-
       try {
-        const res = await fetch("/api/upload", {
-          method: "POST",
-          credentials: "same-origin",
-          body: formData,
-        });
+        let directFileUrl = "";
+
+        // Attempt 1: Direct Cloudinary Upload (Bypasses Vercel 4.5MB limit & function timeout completely)
+        try {
+          submitBtn.textContent = "Connecting to storage...";
+          const signRes = await fetch("/api/cloudinary-sign", { credentials: "same-origin" });
+          const signData = await signRes.json().catch(() => ({}));
+          if (signData && signData.enabled && signData.signature) {
+            submitBtn.textContent = `Uploading file (${(file.size / (1024 * 1024)).toFixed(1)} MB)...`;
+            const cData = new FormData();
+            cData.append("file", file);
+            cData.append("api_key", signData.api_key);
+            cData.append("timestamp", signData.timestamp);
+            cData.append("signature", signData.signature);
+            cData.append("folder", signData.folder || "quantum_hub");
+
+            const cRes = await fetch(`https://api.cloudinary.com/v1_1/${signData.cloud_name}/auto/upload`, {
+              method: "POST",
+              body: cData,
+            });
+            const cResult = await cRes.json().catch(() => ({}));
+            if (cRes.ok && cResult.secure_url) {
+              directFileUrl = cResult.secure_url;
+            } else if (cResult.error && cResult.error.message) {
+              throw new Error(`Cloud storage upload failed: ${cResult.error.message}`);
+            }
+          }
+        } catch (cErr) {
+          console.warn("Direct upload notice:", cErr);
+          if (cErr.message && cErr.message.includes("Cloud storage")) {
+            throw cErr;
+          }
+        }
+
+        let res;
+        if (directFileUrl) {
+          // Direct upload succeeded -> Send lightweight JSON to Vercel (zero timeout, zero 4.5MB limit!)
+          submitBtn.textContent = "Publishing to Hub...";
+          const jsonBody = {
+            contributor_name: el("uploadContributorName").value.trim(),
+            contributor_contact: el("uploadContributorContact").value.trim(),
+            title: el("uploadTitle").value.trim(),
+            branch: el("uploadBranch").value,
+            semester: el("uploadSemester").value,
+            subject: el("uploadSubject").value.trim(),
+            code: el("uploadCode").value.trim(),
+            type: el("uploadType").value,
+            file_url: directFileUrl,
+            original_name: file.name,
+          };
+          res = await fetch("/api/upload", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "same-origin",
+            body: JSON.stringify(jsonBody),
+          });
+        } else {
+          // Fallback: Upload via Vercel server
+          if (file.size > 4.2 * 1024 * 1024) {
+            throw new Error(`File size (${(file.size / (1024 * 1024)).toFixed(1)} MB) exceeds Vercel's 4.5MB limit. Please compress file or check Cloudinary credentials.`);
+          }
+          submitBtn.textContent = "Uploading Resource...";
+          const formData = new FormData();
+          formData.append("contributor_name", el("uploadContributorName").value.trim());
+          formData.append("contributor_contact", el("uploadContributorContact").value.trim());
+          formData.append("title", el("uploadTitle").value.trim());
+          formData.append("branch", el("uploadBranch").value);
+          formData.append("semester", el("uploadSemester").value);
+          formData.append("subject", el("uploadSubject").value.trim());
+          formData.append("code", el("uploadCode").value.trim());
+          formData.append("type", el("uploadType").value);
+          formData.append("file", file);
+
+          res = await fetch("/api/upload", {
+            method: "POST",
+            credentials: "same-origin",
+            body: formData,
+          });
+        }
 
         let data = {};
         const text = await res.text();
         try {
           data = JSON.parse(text);
         } catch {
-          if (res.status === 504 || text.toLowerCase().includes("exceeded") || text.toLowerCase().includes("timeout")) {
-            throw new Error("Upload Timeout (504): File upload hone me 10s se zyada waqt laga. Kripya dobara try karein.");
+          if (res.status === 413 || text.toLowerCase().includes("too large") || text.toLowerCase().includes("entity")) {
+            throw new Error("File Too Large (413): Vercel Serverless Function 4.5MB se badi files direct allow nahi karta. Kripya file compress karein.");
+          } else if (res.status === 504 || text.toLowerCase().includes("exceeded") || text.toLowerCase().includes("timeout")) {
+            throw new Error("Upload Timeout (504): File upload hone me waqt laga. Kripya dobara try karein.");
           } else if (!res.ok) {
-            throw new Error(`Server Error (${res.status}): Server ne valid response nahi diya. Vercel logs ya credentials check karein.`);
+            throw new Error(`Server Error (${res.status}): Server ne valid response nahi diya. Vercel dashboard check karein.`);
           } else {
             throw new Error("Invalid response received from server.");
           }

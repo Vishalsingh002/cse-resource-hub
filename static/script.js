@@ -1879,7 +1879,7 @@ function renderContributorsList(list) {
       </div>
       <div class="contributor-details">
         <div class="contributor-name-title">
-          <span>${escapeHtml(c.contributor_name)}</span>
+          <span class="contributor-name">${escapeHtml(c.contributor_name)}</span>
           ${isTop ? '<span class="top-star-chip">★ Top Contributor</span>' : ''}
         </div>
         <div class="contributor-branches-text">

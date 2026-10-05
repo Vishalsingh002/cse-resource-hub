@@ -13,7 +13,7 @@
   <link
     href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap"
     rel="stylesheet">
-  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=30" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=31" />
 </head>
 
 <body>
@@ -399,7 +399,7 @@
        ============================================================ -->
   <div id="contributorsModal" class="modal-overlay hidden" role="dialog" aria-modal="true">
     <div class="modal modal-wide">
-      <button class="modal-close" data-close="contributorsModal">&times;</button>
+      <button type="button" class="modal-close" data-close="contributorsModal" aria-label="Close">&times;</button>
       <div class="modal-header-simple">
         <div class="modal-title-row">
           <h2 class="font-kalam">Campus Hall of Fame 🏆</h2>
@@ -1007,7 +1007,7 @@
   </script>
 
   <!-- Main JavaScript -->
-  <script src="{{ url_for('static', filename='script.js') }}?v=30"></script>
+  <script src="{{ url_for('static', filename='script.js') }}?v=31"></script>
 </body>
 
 </html>

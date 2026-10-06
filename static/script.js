@@ -2061,9 +2061,9 @@ function bindEvents() {
         return;
       }
 
-      if (file.size > 25 * 1024 * 1024) {
+      if (file.size > 5 * 1024 * 1024) {
         if (errorEl) {
-          errorEl.textContent = `File size (${(file.size / (1024 * 1024)).toFixed(1)} MB) is too large. Max limit is 25MB.`;
+          errorEl.textContent = `File size (${(file.size / (1024 * 1024)).toFixed(1)} MB) is too large. Max limit is 5MB.`;
           errorEl.classList.remove("hidden");
         }
         return;
@@ -2225,6 +2225,17 @@ function bindEvents() {
   function handleFileSelected() {
     const file = fileInput.files[0];
     if (!file) { resetFileDropzone(); return; }
+    const errorEl = el("uploadError");
+    if (file.size > 5 * 1024 * 1024) {
+      if (errorEl) {
+        errorEl.textContent = `File size (${(file.size / (1024 * 1024)).toFixed(1)} MB) exceeds 5MB limit. Please select a file under 5MB.`;
+        errorEl.classList.remove("hidden");
+      }
+      fileInput.value = "";
+      resetFileDropzone();
+      return;
+    }
+    if (errorEl) errorEl.classList.add("hidden");
     if (el("fileDropzoneEmpty")) el("fileDropzoneEmpty").classList.add("hidden");
     if (el("fileDropzonePreview")) el("fileDropzonePreview").classList.remove("hidden");
     if (dropzone) dropzone.classList.add("has-file");
@@ -2278,6 +2289,9 @@ function bindEvents() {
 
       try {
         if (hasFile) {
+          if (fileInput.files[0].size > 5 * 1024 * 1024) {
+            throw new Error(`Attached file (${(fileInput.files[0].size / (1024 * 1024)).toFixed(1)} MB) exceeds 5MB limit.`);
+          }
           const formData = new FormData();
           formData.append("category", el("requestCategory").value);
           formData.append("name", el("requestName").value.trim());

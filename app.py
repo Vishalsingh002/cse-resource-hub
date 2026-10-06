@@ -42,7 +42,7 @@ if os.path.exists(_env_file):
 
 DB_PATH = os.path.join(BASE_DIR, "database.db")
 UPLOAD_DIR = os.path.join(BASE_DIR, "uploads")
-MAX_FILE_BYTES = 10 * 1024 * 1024  # 10 MB per file
+MAX_FILE_BYTES = 5 * 1024 * 1024  # 5 MB per file
 ALLOWED_EXTENSIONS = {"pdf", "doc", "docx", "ppt", "pptx", "jpg", "jpeg", "png", "gif", "webp"}
 
 # Turso (Cloud SQLite) credentials
@@ -198,6 +198,11 @@ app.config["SESSION_COOKIE_SECURE"] = os.environ.get("SESSION_COOKIE_SECURE", "0
 app.config["TEMPLATES_AUTO_RELOAD"] = True
 
 os.makedirs(UPLOAD_DIR, exist_ok=True)
+ 
+ 
+@app.errorhandler(413)
+def request_entity_too_large(error):
+    return jsonify({"error": "File size exceeds the 5MB limit. Please compress or choose a smaller file."}), 413
 
 
 # ---------------------------------------------------------------------------
